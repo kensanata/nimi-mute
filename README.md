@@ -84,8 +84,11 @@ newline to the page.
 Options
 -------
 
-It implements Net::Server and thus all the options available to
-Net::Server are also available here. Additional options are available:
+It implements [Net::Server](https://metacpan.org/pod/Net::Server) and thus
+[all the options](https://metacpan.org/pod/Net::Server#DEFAULT-ARGUMENTS-FOR-Net::Server)
+available to `Net::Server` are also available here.
+
+Additionally, the following options are used:
 
 ```
 --dir       - this is the path to the data directory (.)
@@ -94,8 +97,6 @@ Net::Server are also available here. Additional options are available:
 --max       - this is the maximum file size for uploads (10000)
 --cert_file - the filename containing a certificate in PEM format
 --key_file  - the filename containing a private key in PEM format
---port      - the port to listen to, defaults to a random port
---log_level - the log level to use, defaults to 2
 ```
 
 Some of these you can also set via environment variables:
@@ -109,10 +110,17 @@ NIMI_MUTE_MAX
 
 For many of the options, more information can be had in the
 Net::Server documentation. This is important if you want to daemonize
-the server. You'll need to use `--pid`_file so that you can stop it
+the server. You'll need to use `--pid_file` so that you can stop it
 using a script, `--setsid` to daemonize it, `--log_file` to write keep
 logs, and you'll need to set the user or group using `--user` or
 `--group` such that the server has write access to the data directory.
+
+The most important options for beginners are probably these:
+
+```
+--port      - the port to listen to, as it defaults to a random port
+--log_level - the log level to use, use 4 instead of the default of 2
+```
 
 Securing your Server
 --------------------
