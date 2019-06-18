@@ -91,9 +91,21 @@ This server serves a nimi mute site.
 It implements Net::Server and thus all the options available to
 Net::Server are also available here. Additional options are available:
 
---dir       - this is the path to the data directory
+--dir       - this is the path to the data directory (.)
+--index     - this is the default file name (README.md)
+--password  - this is the password if you want to enable uploads
+--max       - this is the maximum file size for uploads (10000)
 --cert_file - the filename containing a certificate in PEM format
 --key_file  - the filename containing a private key in PEM format
+--port      - the port to listen to, defaults to a random port
+--log_level - the log level to use, defaults to 2
+
+Some of these you can also set via environment variables:
+
+NIMI_MUTE_DIR
+NIMI_MUTE_INDEX
+NIMI_MUTE_PASSWORD
+NIMI_MUTE_MAX
 
 For many of the options, more information can be had in the Net::Server
 documentation. This is important if you want to daemonize the server. You'll
@@ -102,27 +114,9 @@ daemonize it, --log_file to write keep logs, and you'll need to set the user or
 group using --user or --group such that the server has write access to the data
 directory.
 
-For testing purposes, you can start with the following:
-
---port=7070
-    The port to listen to, defaults to a random port.
---log_level=4
-    The log level to use, defaults to 2.
---dir=/var/oddmuse
-    The wiki directory, defaults to the value of the "NIMI_MUTE_DIR" environment
-    variable or the current directory.
---index=README.md
-    The default file to serve, defaults to the value of the "NIMI_MUTE_INDEX"
-    environment variable or README.md.
---password=xyzzy
-    The password that allows users to write files, defaults to empty, thus
-    preventing visitors from writing files.
---help
-    Prints this message.
-
 Example invocation:
 
-/home/alex/src/nimi-mute/nimi-mute.pl \
+perl nimi-mute.pl \
     --port=7079 \
     --pid_file=/tmp/nimi-mute.pid \
     --dir=/tmp/nimi-mute

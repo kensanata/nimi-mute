@@ -80,6 +80,63 @@ seq 3 > test
 In that last example, the first echo uses `-n` to avoid prepending a
 newline to the page.
 
+Options
+-------
+
+It implements Net::Server and thus all the options available to
+Net::Server are also available here. Additional options are available:
+
+--dir       - this is the path to the data directory (.)
+--index     - this is the default file name (README.md)
+--password  - this is the password if you want to enable uploads
+--max       - this is the maximum file size for uploads (10000)
+--cert_file - the filename containing a certificate in PEM format
+--key_file  - the filename containing a private key in PEM format
+--port      - the port to listen to, defaults to a random port
+--log_level - the log level to use, defaults to 2
+
+Some of these you can also set via environment variables:
+
+NIMI_MUTE_DIR
+NIMI_MUTE_INDEX
+NIMI_MUTE_PASSWORD
+NIMI_MUTE_MAX
+
+For many of the options, more information can be had in the
+Net::Server documentation. This is important if you want to daemonize
+the server. You'll need to use --pid_file so that you can stop it
+using a script, --setsid to daemonize it, --log_file to write keep
+logs, and you'll need to set the user or group using --user or --group
+such that the server has write access to the data directory.
+
+Securing your Server
+--------------------
+
+If you want to use SSL, you need to provide PEM files containing
+certificate and private key. To create self-signed files, for example:
+
+```
+openssl req -new -x509 -days 365 -nodes -out \
+        server-cert.pem -keyout server-key.pem
+```
+
+Make sure the common name you provide matches your domain name!
+
+Start server with these two files:
+
+```
+perl nimi-mute.pl --port 7079 --log_level=4 \
+                  --cert_file=server-cert.pem --key_file=server-key.pem
+```
+
+Use `gnutls-cli` to test, using `--insecure` because in this setup,
+this is a self-signed key. A small delay is required before send our
+request...
+
+```
+(sleep 1; echo) | gnutls-cli --insecure melanobombus:7079
+```
+
 Limitations
 -----------
 
