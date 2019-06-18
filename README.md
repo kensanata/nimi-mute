@@ -52,9 +52,10 @@ This uses ASCII control characters:
 - the text goes in here
 - ETX (end of text) ends the text
 
-SOH, STX and ETX are the first three ASCII control characters: ^A, ^B
-and ^C, also known as x01, x02, and x03. You can `echo` them from the
-shell using backslash escapes, which you have to enable using `-e`.
+SOH, STX and ETX are the first three ASCII control characters: `^A`,
+`^B` and `^C`, also known as `\x01`, `\x02`, and `\x03`. You can
+`echo` them from the shell using backslash escapes, which you have to
+enable using `-e`.
 
 Examples:
 
@@ -86,6 +87,7 @@ Options
 It implements Net::Server and thus all the options available to
 Net::Server are also available here. Additional options are available:
 
+```
 --dir       - this is the path to the data directory (.)
 --index     - this is the default file name (README.md)
 --password  - this is the password if you want to enable uploads
@@ -94,20 +96,23 @@ Net::Server are also available here. Additional options are available:
 --key_file  - the filename containing a private key in PEM format
 --port      - the port to listen to, defaults to a random port
 --log_level - the log level to use, defaults to 2
+```
 
 Some of these you can also set via environment variables:
 
+```
 NIMI_MUTE_DIR
 NIMI_MUTE_INDEX
 NIMI_MUTE_PASSWORD
 NIMI_MUTE_MAX
+```
 
 For many of the options, more information can be had in the
 Net::Server documentation. This is important if you want to daemonize
-the server. You'll need to use --pid_file so that you can stop it
-using a script, --setsid to daemonize it, --log_file to write keep
-logs, and you'll need to set the user or group using --user or --group
-such that the server has write access to the data directory.
+the server. You'll need to use `--pid`_file so that you can stop it
+using a script, `--setsid` to daemonize it, `--log_file` to write keep
+logs, and you'll need to set the user or group using `--user` or
+`--group` such that the server has write access to the data directory.
 
 Securing your Server
 --------------------
