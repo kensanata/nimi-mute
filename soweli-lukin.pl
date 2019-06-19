@@ -21,6 +21,15 @@ use Mojolicious::Lite;
 use Text::Markdown 'markdown';
 use IO::Socket::IP;
 use URI::Find;
+use Mojo::Log;
+
+plugin Config => {default => {
+  loglevel => 'info',
+  logfile => 'soweli-lukin.pl', }};
+
+my $log = Mojo::Log->new;
+$log->level(app->config('loglevel'));
+$log->path(app->config('logfile'));
 
 my $uri_re = URI::Find->new(sub {})->uri_re;
 
@@ -44,6 +53,7 @@ sub rewrite_gopher {
 sub process {
   my $c = shift;
   $_ = shift;
+  $log->debug('Start processing');
   my $buf;
   my $n = 0;
   while (1) {
@@ -56,7 +66,9 @@ sub process {
       my $url = rewrite_gopher($c, $1);
       $buf .= "[$text]($url)";
     } elsif (/\G($uri_re)/cg) {
-      $buf .= "[$1]($1)";
+      my $text = $1;
+      my $url = rewrite_gopher($c, $1);
+      $buf .= "[$text]($url)";
     } elsif (/\G\[\[([^]\n]+)\|([^]\n]+)\]\]/cg) {
       $buf .= self_link($c, $1, $2);
     } elsif (/\G\[\[([^]\n]+)\]\]/cg) {
@@ -69,6 +81,7 @@ sub process {
       last;
     }
   }
+  $log->debug('Stop processing');
   return $buf;
 }
 
@@ -82,15 +95,18 @@ sub fix {
 
 sub query {
   my ($c, $host, $port, $selector) = @_;
+  $log->info("Querying $host:$port with '$selector'");
   # create client
   my $socket = IO::Socket::IP->new(
     PeerHost => $host,
     PeerPort => $port,
-    Type     => SOCK_STREAM, )
+    Type     => SOCK_STREAM,
+    Timeout  => 3, )
       or die "Cannot construct client socket: $@";
   $socket->print("$selector\r\n");
   undef $/; # slurp
   my $text = <$socket>;
+  $socket->close(); # be explicit
   return '', markdown("No data received from $host:$port using $selector")
       unless length($text) > 0;
   return fix(markdown(process($c, $text)));
