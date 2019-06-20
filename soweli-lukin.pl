@@ -53,7 +53,6 @@ sub rewrite_gopher {
 sub process {
   my $c = shift;
   $_ = shift;
-  $log->debug('Start processing');
   my $buf;
   my $n = 0;
   while (1) {
@@ -81,7 +80,6 @@ sub process {
       last;
     }
   }
-  $log->debug('Stop processing');
   return $buf;
 }
 
