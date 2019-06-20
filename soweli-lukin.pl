@@ -22,6 +22,7 @@ use Text::Markdown 'markdown';
 use IO::Socket::IP;
 use URI::Find;
 use Mojo::Log;
+use Encode;
 
 plugin Config => {default => {
   loglevel => 'info',
@@ -64,6 +65,9 @@ sub process {
       my $text = $2;
       my $url = rewrite_gopher($c, $1);
       $buf .= "[$text]($url)";
+    } elsif (/\G(\[[^]\n]+\]: $uri_re)/cg) {
+      # these references will get handled by Markdown
+      $buf .= $1;
     } elsif (/\G($uri_re)/cg) {
       my $text = $1;
       my $url = rewrite_gopher($c, $1);
@@ -107,7 +111,7 @@ sub query {
   $socket->close(); # be explicit
   return '', markdown("No data received from $host:$port using $selector")
       unless length($text) > 0;
-  return fix(markdown(process($c, $text)));
+  return decode('UTF-8', $text);
 }
 
 # return (text, error)
@@ -137,8 +141,11 @@ sub get_text {
 get '/' => sub {
   my $c = shift;
   my $url = $c->param('url');
+  my $raw = $c->param('raw');
   my ($md, $error) = get_text($c, $url);
-  $c->render(template => 'index', url => $url, md => $md, error => $error);
+  $md = fix(markdown(process($c, $md))) unless $raw;
+  $c->render(template => 'index', url => $url, md => $md, error => $error,
+	     raw => $raw);
 } => 'main';
 
 app->start;
@@ -152,6 +159,8 @@ __DATA__
 %= form_for main => begin
 %= label_for url => 'URL'
 %= text_field url => $url, id => 'url'
+%= label_for raw => 'plain text'
+%= check_box raw => 1, id => 'raw'
 %= submit_button 'Go'
 % end
 % if ($error) {
@@ -159,7 +168,7 @@ __DATA__
 %== $error
 </div>
 % }
-<div class="text">
+<div class="<%= ($raw ? 'text' : 'markdown') =%>">
 %== $md
 </div>
 
@@ -176,6 +185,7 @@ body {
 }
 #url { width: 50ex }
 .error { font-weight: bold; color: red }
+.text { white-space: pre; font-family: mono }
 % end
 <meta name="viewport" content="width=device-width">
 </head>
