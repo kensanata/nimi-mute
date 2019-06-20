@@ -1,3 +1,6 @@
+This page documents both a [client](#soweli-lukin) and a
+[server](#nimi-mute).
+
 Nimi Mute
 =========
 
@@ -161,3 +164,30 @@ Limitations
 
 - There is no simple way to follow links: you either need client
   support, or send new, hand-crafted requests
+
+Soweli Lukin
+============
+
+This is a simple text web client. You can give it a Gopher URL and it
+will fetch the plain text and interpret it as Markdown, rendering it
+as HTML. It's not a complete Gopher client because it only handles
+text files.
+
+This is a *Mojolicious* app. You could run it as CGI script but
+ideally you'd tell your webserver to act as a proxy to another port on
+the same server and have the Mojolicious app run there, either
+stand-alone, or via *Hypnotoad* or *Toadfarm*. All of these can be
+installed via CPAN.
+
+For development, use *Morbo*. It's part of *Mojolicious*. Here's how
+you would invoke it:
+
+```
+morbo soweli-lukin.pl
+```
+
+This makes the application available locally on port 3000. Use your
+web browser to test it. If you make changes to the source code,
+*Morbo* automatically reloads it.
+
+Tags: [[tag:Soweli Lukin]] [[tag:Nimi Mute]] [[tag:Web]] [[tag:Gopher]]
