@@ -189,5 +189,3 @@ morbo soweli-lukin.pl
 This makes the application available locally on port 3000. Use your
 web browser to test it. If you make changes to the source code,
 *Morbo* automatically reloads it.
-
-Tags: [[tag:Soweli Lukin]] [[tag:Nimi Mute]] [[tag:Web]] [[tag:Gopher]]
