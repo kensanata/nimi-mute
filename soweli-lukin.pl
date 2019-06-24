@@ -181,7 +181,6 @@ __DATA__
 %= form_for main => begin
 %= label_for url => 'URL'
 %= text_field url => $url, id => 'url'
-<br>
 %= label_for raw => 'plain text'
 %= check_box raw => 1, id => 'raw'
 %= submit_button 'Go'
