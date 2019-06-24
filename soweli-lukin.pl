@@ -181,6 +181,7 @@ __DATA__
 %= form_for main => begin
 %= label_for url => 'URL'
 %= text_field url => $url, id => 'url'
+<br>
 %= label_for raw => 'plain text'
 %= check_box raw => 1, id => 'raw'
 %= submit_button 'Go'
@@ -208,6 +209,12 @@ body {
 #url { width: 50ex }
 .error { font-weight: bold; color: red }
 .text { white-space: pre; font-family: mono }
+@media only screen and (max-width: 400px) {
+  body { padding: 0; }
+  h1 { margin-top: 2; margin-bottom: 0; }
+  label[for="url"] { display: none; }
+  #url { width: 95%; margin-bottom: 10px; }
+}
 % end
 <meta name="viewport" content="width=device-width">
 </head>
@@ -215,7 +222,7 @@ body {
 <%= content %>
 <hr>
 <p>
-<a href="https://alexschroeder.ch/cgit/nimi-mute/about/">Nimi Mute &amp; Soweli Lukin</a>&#x2003;
+<a href="https://alexschroeder.ch/cgit/nimi-mute/about/#soweli-lukin">Soweli Lukin</a>&#x2003;
 <a href="https://alexschroeder.ch/wiki/Contact">Alex Schroeder</a>
 </body>
 </html>

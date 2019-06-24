@@ -171,7 +171,8 @@ Soweli Lukin
 This is a simple text web client. You can give it a Gopher URL and it
 will fetch the plain text and interpret it as Markdown, rendering it
 as HTML. It's not a complete Gopher client because it only handles
-text files.
+text files and limited gopher menus (item types `0`, `1`, `i` and
+`h`).
 
 This is a *Mojolicious* app. You could run it as CGI script but
 ideally you'd tell your webserver to act as a proxy to another port on
