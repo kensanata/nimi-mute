@@ -54,6 +54,7 @@ sub rewrite_gopher {
 sub process {
   my $c = shift;
   $_ = shift;
+  return unless defined $_;
   # these "malformed" references will get handled by Markdown
   s!\[(\d+,\d+)\]!" " . join(", ", map { "[$_]" } split(/,/, $1))!eg;
   # add a space before numerical references
@@ -180,10 +181,13 @@ get '/' => sub {
   my $url = $c->param('url');
   my $raw = $c->param('raw');
   my ($md, $error) = get_text($c, $url);
-  $md = fix(markdown(process($c, $md))) unless $raw;
-  # $md = process($c, $md); $raw = 1;
-  $c->render(template => 'index', url => $url, md => $md, error => $error,
-	     raw => $raw);
+  if ($raw) {
+    $c->render(template => 'index', url => $url, md => $md, error => $error, raw => $raw);
+  } else {
+    $md = process($c, $md);
+    my $html = $md ? fix(markdown($md)) : '';
+    $c->render(template => 'index', url => $url, md => $html, error => $error, raw => $raw);
+  }
 } => 'main';
 
 app->start;
