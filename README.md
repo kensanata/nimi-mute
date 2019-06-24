@@ -161,8 +161,14 @@ Limitations
 - Filenames may contain spaces but not newlines as newlines mark the
   end of a request.
 
+- Filenames may not start with a greater-than character because that
+  indicates your intention to write to the file.
+
 - Filenames may not end in whitespace as whitespace is trimmed at the
   end of a request.
+
+- Files may not be uploaded if they contain a line with nothing but a
+  period on it because that indicates the end of the file.
 
 - There is no simple way to follow links: you either need client
   support, or send new, hand-crafted requests
