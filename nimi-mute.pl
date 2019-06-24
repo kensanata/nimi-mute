@@ -161,24 +161,19 @@ sub read_page {
     $self->serve_error("password mismatch: '$pw'");
   } else {
     my $buf;
-    my $start;
     while (1) {
       my $line = <STDIN>;
-      $start ||= $line =~ s/.*\x02//;
-      next unless $start;
       if (length($line) == 0) {
 	sleep(1); # wait for input
 	next;
-      }
-      if ($line =~ s/\x03.*//s) {
-	# make sure we also remove \r
+      } elsif ($line =~ /^\.\r?\n/) {
+	last;
+      } else {
 	$buf .= $line;
-	last;
-      }
-      $buf .= $line;
-      if (length($buf) > $max) {
-	$buf = substr($buf, 0, $max);
-	last;
+	if (length($buf) > $max) {
+	  $buf = substr($buf, 0, $max);
+	  last;
+	}
       }
     }
     $self->log(4, "Received " . length($buf) . " bytes (max is $max): " . uri_escape($buf));
@@ -193,6 +188,18 @@ sub write_page {
   my $exists = -e "$dir/$id";
   if (write_file("$dir/$id", $text)) {
     print $exists ? "Updated '$id'\n" : "Created '$id'\n";
+  } else {
+    $self->serve_error("file '$id' cannot be written: $!");
+  }
+}
+
+sub append_page {
+  my $self = shift;
+  my $id = shift;
+  my $text = shift;
+  my $exists = -e "$dir/$id";
+  if (append_file("$dir/$id", $text)) {
+    print $exists ? "Appended to '$id'\n" : "Created '$id'\n";
   } else {
     $self->serve_error("file '$id' cannot be written: $!");
   }
@@ -229,24 +236,37 @@ sub process_request {
       die "Timed Out!\n";
     };
     alarm(10); # timeout
+    $self->log(4, "Reading selector");
     my $selector = <STDIN>; # one line only
+    $self->log(4, "Read selector '$selector'");
     $selector = uri_unescape($selector); # assuming URL-encoded UTF-8
     $selector =~ s/\s+$//g; # no trailing whitespace
 
     if (not $selector or $selector eq "/") {
       $self->serve_main_menu();
+    } elsif ($password and $selector =~ m!^(>+)([^/[:cntrl:]]*)!) {
+      my $mode = $1;
+      my $id = $2;
+      if ($mode eq '>') {
+	my $text = $self->read_page();
+	if ($text) {
+	  $self->write_page($id, $text);
+	} else {
+	  $self->delete_page($id);
+	}
+      } elsif ($mode eq '>>') {
+	my $text = $self->read_page();
+	if ($text) {
+	  $self->append_page($id, $text);
+	} else {
+	  $self->serve_error("nothing to append");
+	}
+      } else {
+	$self->serve_error("invalid mode '$mode'");
+      }
     } elsif ($selector =~ m!^([^/[:cntrl:]]*)$!) {
       # no slashes, no control characters
       $self->serve_page($1);
-    } elsif ($password and $selector =~ m!^\x01([^/[:cntrl:]]*)!) {
-      # starting with SOH ("start of heading")
-      my $id = $1;
-      my $text = $self->read_page();
-      if ($text) {
-	$self->write_page($id, $text);
-      } else {
-	$self->delete_page($id);
-      }
     } else {
       $self->serve_error("invalid selector '$selector'");
     }

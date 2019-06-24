@@ -14,9 +14,10 @@ Internet: send a "selector" and get back some text. That's it.
 
 It's simpler than gopher because we don't care about menus.
 
-It's simpler than the web because we don't have request headers.
-
-It's simpler than finger because we don't have structured information.
+Actually, that's not quite true: if you write your Gopher menu by
+hand, then it can still be served, and a Gopher client can still read
+it. It's just that this wasn't the *intent* when I started the
+project.
 
 Examples:
 
@@ -46,48 +47,44 @@ Writing
 -------
 
 This server also allows users who know the password to *write* files.
-This uses ASCII control characters:
+Just start your request with the greater-than character, send the
+filename, a newline, the password, another newline, then the file
+content, and terminate it with a single period on a line by itself,
+like in the good old days when `ed` was the standard editor.
 
-- SOH (start of heading) starts the process
-- what follows is the page name
-- the page name is terminated by a newline
-- trailing whitespace is trimmed (including \r)
-- then there's the password you need to provide
-- the password is terminated by a newline
-- trailing whitespace is trimmed (including \r)
-- anything else is skipped until the text begins
-- STX (start of text) begins the text
-- the text goes in here
-- ETX (end of text) ends the text
+That also means that your text file may not contain a line with just
+period, obviously.
 
-SOH, STX and ETX are the first three ASCII control characters: `^A`,
-`^B` and `^C`, also known as `\x01`, `\x02`, and `\x03`. You can
-`echo` them from the shell using backslash escapes, which you have to
-enable using `-e`.
+And just because it was easy to do, two greater-than characters
+*append* to a file. It's a bit like shell redirection, right?
+
+Anyway. No filenames starting with `>`, obviously.
 
 Examples:
 
-```
-# startup server (with pasword)
+```bash
+# startup server (with password)
 perl nimi-mute.pl --port 7079 --log_level=4 --password=admin
 # Error: file does not exist: 'Alex'
 echo Alex | nc localhost 7079
 # Created 'Alex'
-echo -e "\01Alex\nadmin\n\02say friend\n\03" | nc localhost 7079
-# say friend
+echo -e ">Alex\nadmin\nhello\n.\n" | nc localhost 7079
+# hello
 echo Alex | nc localhost 7079
 # Updated 'Alex'
-echo -e "\01Alex\nadmin\n\02say friend\nand enter\n\03" | nc localhost 7079
+echo -e ">Alex\nadmin\nsay friend\n.\n" | nc localhost 7079
+# Appended to 'Alex'
+echo -e ">>Alex\nadmin\nand enter\n.\n" | nc localhost 7079
 # say friend
 # and enter
 echo Alex | nc localhost 7079
 # or use a file
 seq 3 > test
-(echo -ne "\01Alex\nadmin\n\02"; cat test; echo -e "\03") | nc localhost 7079
+echo . >> test
+(echo -e ">Alex\nadmin"; cat test) | nc localhost 7079
+# Deleted Alex
+echo -e ">Alex\nadmin\n.\n" | nc localhost 7079
 ```
-
-In that last example, the first echo uses `-n` to avoid prepending a
-newline to the page.
 
 Options
 -------
