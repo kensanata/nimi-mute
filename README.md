@@ -1,6 +1,11 @@
 This page documents both a [client](#soweli-lukin) and a
 [server](#nimi-mute).
 
+If you're just interested in the web app Gopher client which is a good
+alternative to [VF-1](https://github.com/solderpunk/VF-1) for your
+mobile devices, feel free to use to 
+[start here](https://alexschroeder.ch/soweli-lukin?url=gopher%3A%2F%2Falexschroeder.ch%3A70%2F1map%2FMoku_Pona_Updates).
+
 Nimi Mute
 =========
 
