@@ -22,7 +22,9 @@ use Text::Markdown 'markdown';
 use IO::Socket::IP;
 use URI::Find;
 use Mojo::Log;
+use List::Util qw(max);
 use Encode;
+use feature 'unicode_strings';
 
 plugin Config => {default => {
   loglevel => 'info',
@@ -55,37 +57,34 @@ sub process {
   my $c = shift;
   $_ = shift;
   return unless defined $_;
+  # the DOS line endings cause needless confusion
+  s!\r\n!\n!g;
   # these "malformed" references will get handled by Markdown
   s!\[(\d+,\d+)\]!" " . join(", ", map { "[$_]" } split(/,/, $1))!eg;
   # add a space before numerical references
   s!\b(\[\d+\])! $1!g;
-  # disable HTML
-  s/&/&amp;/g;
-  s/</&lt;/g;
-  s/>/&gt;/g;
-  s/[\x00-\x08\x0b\x0c\x0e-\x1f]/ /g; # legal xml: #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
   my $buf;
   my $n = 0;
   my $list = 0;
   while (1) {
-    if (/\G^(?<type>[01])(?<name>[^\t\n]+)\t(?<selector>[^\t\n]+)\t(?<host>[^\t\n]+)\t(?<port>\d+)\r?\n/cgm) {
+    if (/\G^(?<type>[01])(?<name>[^\t\n]+)\t(?<selector>[^\t\n]+)\t(?<host>[^\t\n]+)\t(?<port>\d+)\n/cgm) {
       # gopher map: gopher link
       my $text = $+{name};
       my $url = "gopher://$+{host}:$+{port}/$+{type}$+{selector}";
       $url = $c->url_for('main')->query( url => $url );
       $buf .= "\n" unless $list++;
       $buf .= "* [$text]($url)\n";
-    } elsif (/\G^h([^\t\n]+)\tURL:([^\t\n]+)\t[^\t\n]*\t[^\t\n]*\r?\n/cgm) {
+    } elsif (/\G^h([^\t\n]+)\tURL:([^\t\n]+)\t[^\t\n]*\t[^\t\n]*\n/cgm) {
       # gopher map: hyper link
       my $text = $1;
       my $url = rewrite_gopher($c, $2);
       $buf .= "\n" unless $list++;
       $buf .= "* [$text]($url)\n";
-    } elsif (/\G^i([^\t\n]*)\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\r?\n/cgm) {
+    } elsif (/\G^i([^\t\n]*)\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\n/cgm) {
       # gopher map: information
       $buf .= "$1\n";
       $list = 0;
-    } elsif (/\G^.[^\t\n]*\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\r?\n/cgm) {
+    } elsif (/\G^.[^\t\n]*\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\n/cgm) {
       # gopher map!
       # all other gopher types are not supported
     } elsif (/\G\[($uri_re)\]/cg) {
@@ -122,7 +121,54 @@ sub process {
       last;
     }
   }
+  # strip trailing period, if any
+  $buf =~ s/^\.$//m;
   return $buf;
+}
+
+sub quote_html {
+  $_ = shift;
+  return unless defined $_;
+  s/&/&amp;/g;
+  s/</&lt;/g;
+  s/>/&gt;/g;
+  s/[\x00-\x08\x0b\x0c\x0e-\x1f]/ /g; # legal xml: #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+  return $_;
+}
+
+sub quote_ascii_art {
+  $_ = shift;
+  return unless defined $_;
+  my @paragraphs = split(/\n\n+/);
+  # compute length of "most lines"
+  # my @length = sort { $a <=> $b } map { length } grep /^[[:alnum:]]/, split /\n/;
+  # my $short = max $length[$#length] - 20, $length[int($#length * 0.8)];
+  for (@paragraphs) {
+    my $alphanums = () = /[[:alnum:]]/g;
+    my $punctuation = () = /[[:punct:]]/g;
+    my $spaces = () = /[[:space:]]/g;
+    my $lines = () = /.+/g;
+    if ($punctuation + $spaces > $alphanums) {
+      my $list_items = () = /^\*.+/gm;
+      if ($list_items < $lines) {
+	$_ = "<pre>\n$_\n</pre>";
+      } else {
+	s!^(\* .*)!<code>$1</code>!gm;
+      }
+    } else {
+      # my $max = max map { length } split /\n/;
+      # if ($max < $short) {
+      # 	$_ = "<pre>\n$_\n</pre>";
+      # }
+      my $definitions = () = grep /^[[:alpha:]].*:/, split /\n/;
+      if ($definitions == $lines
+	  or $lines > 4 and $definitions == $lines - 1
+	  or $lines > 8 and $definitions == $lines - 2) {
+	$_ = "<pre>\n$_\n</pre>";
+      }
+    }
+  }
+  return join "\n\n\n", @paragraphs;
 }
 
 sub fix {
@@ -181,10 +227,12 @@ get '/' => sub {
   my $url = $c->param('url');
   my $raw = $c->param('raw');
   my ($md, $error) = get_text($c, $url);
+  $md = quote_html($md);
   if ($raw) {
     $c->render(template => 'index', url => $url, md => $md, error => $error, raw => $raw);
   } else {
     $md = process($c, $md);
+    $md = quote_ascii_art($md);
     my $html = $md ? fix(markdown($md)) : '';
     $c->render(template => 'index', url => $url, md => $html, error => $error, raw => $raw);
   }
