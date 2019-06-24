@@ -142,7 +142,7 @@ sub query {
     PeerPort => $port,
     Type     => SOCK_STREAM,
     Timeout  => 3, )
-      or die "Cannot construct client socket: $@";
+      or return '', markdown("Cannot connect to $host:$port: $@");
   $socket->print("$selector\r\n");
   undef $/; # slurp
   my $text = <$socket>;
