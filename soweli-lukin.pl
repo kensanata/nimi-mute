@@ -26,7 +26,7 @@ use Encode;
 
 plugin Config => {default => {
   loglevel => 'info',
-  logfile => 'soweli-lukin.pl', }};
+  logfile => 'soweli-lukin.log', }};
 
 my $log = Mojo::Log->new;
 $log->level(app->config('loglevel'));
@@ -56,8 +56,29 @@ sub process {
   $_ = shift;
   my $buf;
   my $n = 0;
+  my $list = 0;
   while (1) {
-    if (/\G\[($uri_re)\]/cg) {
+    if (/\G^(?<type>[01])(?<name>[^\t\n]+)\t(?<selector>[^\t\n]+)\t(?<host>[^\t\n]+)\t(?<port>\d+)\r?\n/cgm) {
+      # gopher map: gopher link
+      my $text = $+{name};
+      my $url = "gopher://$+{host}:$+{port}/$+{type}$+{selector}";
+      $url = $c->url_for('main')->query( url => $url );
+      $buf .= "\n" unless $list++;
+      $buf .= "* [$text]($url)\n";
+    } elsif (/\G^h([^\t\n]+)\tURL:([^\t\n]+)\t[^\t\n]*\t[^\t\n]*\r?\n/cgm) {
+      # gopher map: hyper link
+      my $text = $1;
+      my $url = rewrite_gopher($c, $2);
+      $buf .= "\n" unless $list++;
+      $buf .= "* [$text]($url)\n";
+    } elsif (/\G^i([^\t\n]*)\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\r?\n/cgm) {
+      # gopher map: information
+      $buf .= "$1\n";
+      $list = 0;
+    } elsif (/\G^.[^\t\n]*\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\r?\n/cgm) {
+      # gopher map!
+      # all other gopher types are not supported
+    } elsif (/\G\[($uri_re)\]/cg) {
       $n++;
       my $url = rewrite_gopher($c, $1);
       $buf .= "[[$n]($url)]";
@@ -124,18 +145,18 @@ sub get_text {
   return '', markdown(sprintf("URL scheme must be `gopher` or `gophers`, not %s", $url->scheme || 'empty'))
       unless $url->scheme eq 'gopher' or $url->scheme eq 'gophers';
 
-  return '', markdown("A selector (path) must be provided")
-      if $url->path eq "" or $url->path eq "/";
-
-  my $itemtype = substr($url->path, 1, 1);
-  return '', markdown(sprintf("Gopher item type must be `0`, not %s", $itemtype || 'empty'))
-      if length($url->path) > 0 and $itemtype ne "0";
-
   my $selector;
-  $selector .= substr($url->path, 2);
-  $selector .= "?" . $url->query     if $url->query ne "";
-  $selector .= "#" . $url->fragment  if $url->fragment;
-  return query($c, $url->host, $url->port || 70, $selector);
+  if ($url->path ne '') {
+    my $itemtype = substr($url->path, 1, 1);
+    return '', markdown(sprintf("Gopher item type must be `0` or `1`, not %s", $itemtype || 'empty'))
+	if length($url->path) > 0 and not ($itemtype eq "0" or $itemtype eq "1");
+
+    $selector .= substr($url->path, 2);
+    $selector .= "?" . $url->query     if $url->query ne "";
+    $selector .= "#" . $url->fragment  if $url->fragment;
+  }
+
+  return query($c, $url->host, $url->port || 70, $selector || '');
 }
 
 get '/' => sub {
@@ -144,6 +165,7 @@ get '/' => sub {
   my $raw = $c->param('raw');
   my ($md, $error) = get_text($c, $url);
   $md = fix(markdown(process($c, $md))) unless $raw;
+  # $md = process($c, $md); $raw = 1;
   $c->render(template => 'index', url => $url, md => $md, error => $error,
 	     raw => $raw);
 } => 'main';
