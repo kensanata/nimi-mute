@@ -54,6 +54,15 @@ sub rewrite_gopher {
 sub process {
   my $c = shift;
   $_ = shift;
+  # these "malformed" references will get handled by Markdown
+  s!\[(\d+,\d+)\]!" " . join(", ", map { "[$_]" } split(/,/, $1))!eg;
+  # add a space before numerical references
+  s!\b(\[\d+\])! $1!g;
+  # disable HTML
+  s/&/&amp;/g;
+  s/</&lt;/g;
+  s/>/&gt;/g;
+  s/[\x00-\x08\x0b\x0c\x0e-\x1f]/ /g; # legal xml: #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
   my $buf;
   my $n = 0;
   my $list = 0;
@@ -86,9 +95,16 @@ sub process {
       my $text = $2;
       my $url = rewrite_gopher($c, $1);
       $buf .= "[$text]($url)";
-    } elsif (/\G(\[[^]\n]+\]: $uri_re)/cg) {
+    } elsif (/\G(\[[^]\n]+\]): ($uri_re)/cg) {
       # these references will get handled by Markdown
-      $buf .= $1;
+      my $ref = $1;
+      my $url = rewrite_gopher($c, $2);
+      $buf .= "$ref: $url";
+    } elsif (/\G(\[[^]\n]+\]) ($uri_re)/cg) {
+      # these "malformed" references will get handled by Markdown
+      my $ref = $1;
+      my $url = rewrite_gopher($c, $2);
+      $buf .= "$ref: $url";
     } elsif (/\G($uri_re)/cg) {
       my $text = $1;
       my $url = rewrite_gopher($c, $1);
