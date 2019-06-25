@@ -260,6 +260,7 @@ __DATA__
 %== $error
 </div>
 % }
+<hr>
 <div class="<%= ($raw ? 'text' : 'markdown') =%>">
 %== $md
 </div>
