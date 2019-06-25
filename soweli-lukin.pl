@@ -290,6 +290,7 @@ body {
 #url { width: 50ex }
 .error { font-weight: bold; color: red }
 .text { white-space: pre; font-family: mono }
+code { white-space: pre }
 @media only screen and (max-width: 400px) {
   body { padding: 0; }
   h1 { margin-top: 2; margin-bottom: 0; }
