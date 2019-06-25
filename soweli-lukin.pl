@@ -209,7 +209,7 @@ sub get_text {
       unless $url->scheme eq 'gopher' or $url->scheme eq 'gophers';
 
   my $selector;
-  if ($url->path ne '') {
+  if ($url->path ne '' and $url->path ne '/') {
     my $itemtype = substr($url->path, 1, 1);
     return '', markdown(sprintf("Gopher item type must be `0` or `1`, not %s", $itemtype || 'empty'))
 	if length($url->path) > 0 and not ($itemtype eq "0" or $itemtype eq "1");
