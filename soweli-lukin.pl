@@ -82,6 +82,7 @@ sub process {
       $buf .= "* [$text]($url)\n";
     } elsif (/\G^i([^\t\n]*)\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\n/cgm) {
       # gopher map: information
+      $buf .= "\n" if $list;
       $buf .= "$1\n";
       $list = 0;
     } elsif (/\G^.[^\t\n]*\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\n/cgm) {
@@ -113,9 +114,17 @@ sub process {
       $buf .= self_link($c, $1, $2);
     } elsif (/\G\[\[([^]\n]+)\]\]/cg) {
       $buf .= self_link($c, $1, $1);
+    } elsif (/\G\[(\/?)quote\]/cg) {
+      $buf .= "<$1blockquote>";
     } elsif (/\G(\s+)/cg) {
       $buf .= $1;
-    } elsif (/\G(\S+)/cg) {
+    } elsif (/\G(\w+)/cg) {
+      $buf .= $1;
+    } elsif (/\G(.)/cgm) {
+      # Punctiation and the like is handled one character at a time such that we
+      # can handle things like [quote](a quote)[/quote]. If we handled multiple
+      # punctuation characters at once, the parser would skip over ")[" and not
+      # recognize "[/quote]".
       $buf .= $1;
     } else {
       last;
@@ -139,7 +148,7 @@ sub quote_html {
 sub quote_ascii_art {
   $_ = shift;
   return unless defined $_;
-  my @paragraphs = split(/\n\n+/);
+  my @paragraphs = split(/\n\s*\n/);
   # compute length of "most lines"
   # my @length = sort { $a <=> $b } map { length } grep /^[[:alnum:]]/, split /\n/;
   # my $short = max $length[$#length] - 20, $length[int($#length * 0.8)];
@@ -148,34 +157,59 @@ sub quote_ascii_art {
     my $punctuation = () = /[[:punct:]]/g;
     my $spaces = () = /[[:space:]]/g;
     my $lines = () = /.+/g;
-    if ($punctuation + $spaces > $alphanums) {
-      my $list_items = () = /^\*.+/gm;
-      if ($list_items < $lines) {
-	$_ = "<pre>\n$_\n</pre>";
+    if ($lines == 2 and (/\n-+$/ or /\n=+$/)) {
+      # Do nothing: these are Markdown headings.
+    } elsif ($punctuation + $spaces > $alphanums) {
+      # When counting list items, make sure we don't count ** as a list item.
+      # Example: gopher://gopher.floodgap.com/
+      if ($lines == (() = /^\*[^*].+/gm)) {
+	# If all the ASCII art looks like it could be list items, then let's
+	# wrap it all in a code tag (such that Markdown still renders links).
+	# Adding the class here prevents fix() from touching it. Examples:
+	# gopher://gopher.club:70/1/users/gallowsgryph/
+	# gopher://gopher.club:70/1/users/xiled/
+	s!^(\* .*)!<code class="list">$1</code><br>!gm;
       } else {
-	s!^(\* .*)!<code>$1</code>!gm;
+	# If there's a lot of punctiation compared to alphanumerics, it's probably
+	# ASCII art. Example: gopher://circumlunar.space:70/1/~cmccabe/
+	$_ = qq{<pre class="ascii">\n$_\n</pre>};
       }
+    } elsif ($lines == (() = /^\*[^*].*   /gm)) {
+      # If we have a list and every list item has multiple spaces in them,
+      # chances are it's a directory of files with dates and sizes.
+      s!^(\* .*)!<code class="list">$1</code><br>!gm;
     } else {
       # my $max = max map { length } split /\n/;
       # if ($max < $short) {
       # 	$_ = "<pre>\n$_\n</pre>";
       # }
-      my $definitions = () = grep /^[[:alpha:]].*:/, split /\n/;
+      # Definition lists and the like. Examples:
+      # gopher://sdf.org:70/1/users/trnslts/feels/2019-05-13
+      # gopher://sdf.org:70/0/users/dbucklin/posts/diction.txt
+      my $definitions = () = grep /^[[:alpha:]].*:\s+.+/, split /\n/;
       if ($definitions == $lines
 	  or $lines > 4 and $definitions == $lines - 1
 	  or $lines > 8 and $definitions == $lines - 2) {
-	$_ = "<pre>\n$_\n</pre>";
+	$_ = qq{<pre class="definitions">\n$_\n</pre>};
       }
     }
+    # my @alnums = /[[:alnum:]]/g;
+    # $_ .= "$punctuation + $spaces > $alphanums";
   }
-  return join "\n\n\n", @paragraphs;
+  return join "\n\n", @paragraphs;
 }
 
 sub fix {
-  # fixing some Text::Markdown weirdness
+  # Fixing some Text::Markdown weirdness. What I think should be pre is getting
+  # rendered as p code. Replacing them as matched pairs because we sometimes use
+  # code with a class to circumvent this fix, and in this case we want to
+  # prevent the "fixing" of the closing tags, too.
   my $text = shift;
-  $text =~ s!<p><code>!<pre>!g;
-  $text =~ s!</code></p>!</pre>!g;
+  $text =~ s!<p><code>(.*?)</code></p>!<pre class="fix">$1</pre>!gs;
+  # Remove trailing two dashes left if the link section has been removed by
+  # Markdown processing. Example:
+  # gopher://lambda.icytree.org:70/0/phlog/2019-06-15-Dwarves-and-Gophers.txt
+  $text =~ s!<p>--\s*</p>\s*$!!;
   return $text;
 }
 
