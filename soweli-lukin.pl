@@ -270,7 +270,18 @@ __DATA__
 <head>
 <title><%= title %></title>
 %= stylesheet '/soweli-lukin.css'
-%= stylesheet begin
+<meta name="viewport" content="width=device-width">
+</head>
+<body>
+<%= content %>
+<hr>
+<p>
+<a href="https://alexschroeder.ch/cgit/nimi-mute/about/#soweli-lukin">Soweli Lukin</a>&#x2003;
+<a href="https://alexschroeder.ch/wiki/Contact">Alex Schroeder</a>
+</body>
+</html>
+
+@@ soweli-lukin.css
 body {
   padding: 1em;
   font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
@@ -284,14 +295,3 @@ body {
   label[for="url"] { display: none; }
   #url { width: 95%; margin-bottom: 10px; }
 }
-% end
-<meta name="viewport" content="width=device-width">
-</head>
-<body>
-<%= content %>
-<hr>
-<p>
-<a href="https://alexschroeder.ch/cgit/nimi-mute/about/#soweli-lukin">Soweli Lukin</a>&#x2003;
-<a href="https://alexschroeder.ch/wiki/Contact">Alex Schroeder</a>
-</body>
-</html>
