@@ -63,6 +63,10 @@ sub process {
   s!\[(\d+,\d+)\]!" " . join(", ", map { "[$_]" } split(/,/, $1))!eg;
   # add a space before numerical references
   s!\b(\[\d+\])! $1!g;
+  # remove the trailing underscore after numerical references
+  s!(\[\d+\])_! $1!g;
+  # fix markup for the references at the end, too
+  s!^\.\. (\[\d+\]) : __!$1:!gm;
   my $buf;
   my $n = 0;
   my $list = 0;
