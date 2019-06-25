@@ -269,7 +269,7 @@ __DATA__
 <html>
 <head>
 <title><%= title %></title>
-%= stylesheet '/tarballs.css'
+%= stylesheet '/soweli-lukin.css'
 %= stylesheet begin
 body {
   padding: 1em;
