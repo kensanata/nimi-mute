@@ -202,7 +202,7 @@ sub query {
 sub get_text {
   my $c = shift;
   my $str = shift;
-  return '' unless $str;
+  return 'Use a Gopher URL like gopher://alexschroeder.ch to get started' unless $str;
 
   my $url = Mojo::URL->new($str);
   return '', markdown(sprintf("URL scheme must be `gopher` or `gophers`, not %s", $url->scheme || 'empty'))
