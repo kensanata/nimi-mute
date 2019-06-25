@@ -224,6 +224,8 @@ sub get_text {
 
 get '/' => sub {
   my $c = shift;
+  # Allow browsers and proxies to cache responses for 60s
+  $c->res->headers->cache_control('public, max-age=60');
   my $url = $c->param('url');
   my $raw = $c->param('raw');
   my ($md, $error) = get_text($c, $url);
