@@ -17,6 +17,7 @@ package Nimi::Ilo;
 use Modern::Perl '2018';
 use base qw(Net::Server::Fork); # any personality will do
 use IO::Socket::IP;
+use MIME::Base64;
 use Mojo::URL;
 use Encode;
 
@@ -120,7 +121,7 @@ sub error {
   print "Content-Type: text/plain\r\n";
   print "\r\n";
   print "$explanation\r\n";
-  die "$error: $explanation";
+  die "$error: $explanation\n";
 }
 
 sub serve_text {
@@ -158,8 +159,29 @@ sub get_text {
   undef $/; # slurp
   my $text = <$socket>;
   $self->log(3, "Received " . length($text) . " bytes");
+  # $self->log(4, $text);
   $socket->close(); # be explicit
   return decode('UTF-8', $text);
+}
+
+sub password_required {
+  print "HTTP/1.0 407 Proxy Authentication Required\r\n";
+  print "Content-Type: text/plain\r\n";
+  print qq{Proxy-Authenticate: Basic realm="Gopher Proxy", charset="UTF-8"\r\n};
+  print "\r\n";
+  print "This Gopher proxy is not public.\r\n";
+  die "401 Unauthorized: This Gopher proxy is not public.\n";
+}
+
+sub password_matches {
+  return 1 unless $password;
+  my $auth = shift;
+  return 0 unless $auth;
+  my ($method, $token) = split / /, $auth;
+  return 0 unless $method eq "Basic";
+  my ($username, $password_provided) = split /:/, decode_base64($token);
+  return 0 unless $password_provided;
+  return $password_provided eq $password;
 }
 
 sub get_menu {
@@ -190,6 +212,16 @@ sub process_request {
     };
     alarm(10); # timeout
     my $request = <STDIN>; # first line
+    my %header;
+    while (<STDIN>) {
+      s/\r$//;
+      chomp;
+      last unless $_;
+      # $self->log(4, "Header: $_");
+      my ($key, $value) = split /:\s*/;
+      $header{lc $key} = $value;
+    }
+    return password_required() if not password_matches($header{"proxy-authorization"});
     my ($method, $path, $version) = split(/\s+/, $request);
     return error("400 BAD REQUEST", "only GET supported") unless $method eq "GET";
     my $url = Mojo::URL->new($path);
@@ -198,10 +230,10 @@ sub process_request {
     $self->log(4, "Proxying $url");
     my $host = $url->host;
     my $port = $url->port || 70;
-    my $selector = ''; # default is empty
-    my $itemtype = 1;  # default is menu
+    my $selector = ""; # default is empty
+    my $itemtype = "1";  # default is menu
     if ($url->path ne '' and $url->path ne '/') {
-      my $itemtype = substr($url->path, 1, 1);
+      $itemtype = substr($url->path, 1, 1);
       return error("400 BAD REQUEST", "Gopher item type must be 0 or 1, not " . $itemtype)
 	  if $itemtype ne "0" and $itemtype ne "1";
       $selector .= substr($url->path, 2);
