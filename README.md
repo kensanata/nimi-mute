@@ -220,9 +220,10 @@ http_proxy=http://localhost:7080/ lynx http://alexschroeder.ch
 http_proxy=http://localhost:7080/ w3m http://alexschroeder.ch
 ```
 
-Note how you need specify HTTP as the protocol because your browser is
-speaking HTTP to the proxy. The proxy speaks Gopher to the upstream
-server, i.e. `alexschroeder.ch` on port 70 in this case.
+Note how you need to specify HTTP as the protocol because your browser
+is speaking HTTP to the proxy. The proxy speaks Gopher to the upstream
+server, i.e. `alexschroeder.ch` on port 70 in this case. The default
+port changes!
 
 I think this is a bad idea! You would need a special profile for your
 browser where you could selectively enable or disable this proxy
