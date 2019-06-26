@@ -1,5 +1,5 @@
-This page documents both a [client](#soweli-lukin) and a
-[server](#nimi-mute).
+This page documents both a [client](#soweli-lukin), a
+[server](#nimi-mute), and a [proxy](#nimi-ilo).
 
 If you're just interested in the web app Gopher client which is a good
 alternative to [VF-1](https://github.com/solderpunk/VF-1) for your
@@ -198,3 +198,22 @@ morbo soweli-lukin.pl
 This makes the application available locally on port 3000. Use your
 web browser to test it. If you make changes to the source code,
 *Morbo* automatically reloads it.
+
+Nimi Ilo
+========
+
+This is a web proxy. It's a ludicrous idea. Start it up much like the
+[server](#nimi-mute). It doesn't support the `dir`, `index` and `max`
+options. The idea is that some kind soul sets it up on the net and you
+can use your browser to read Gopher pages by setting up a web proxy.
+
+Examples:
+
+```
+# startup proxy (with more log messages)
+perl nimi-ilo.pl --port 7080 --log_level=4
+# use the -x option to tell curl about the proxy
+curl -x http://localhost:7080/ http://alexschroeder.ch:70/0Alex_Schroeder
+# use an environment variable to tell lynx about the proxy
+http_proxy=http://localhost:7080/ lynx http://alexschroeder.ch:70/0Alex_Schroeder
+```
