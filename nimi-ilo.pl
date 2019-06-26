@@ -115,12 +115,14 @@ EOT
 run();
 
 sub error {
+  my $self = shift;
   my $error = shift;
   my $explanation = shift;
   print "HTTP/1.0 $error\r\n";
   print "Content-Type: text/plain\r\n";
   print "\r\n";
   print "$explanation\r\n";
+  $self->log(1, "$error: $explanation\n");
   die "$error: $explanation\n";
 }
 
@@ -154,7 +156,7 @@ sub get_text {
     PeerPort => $port,
     Type     => SOCK_STREAM,
     Timeout  => 3, )
-      or return error("502 Bad Gateway", "could not cont contact $host:$port");
+      or return $self->error("502 Bad Gateway", "could not cont contact $host:$port");
   $socket->print("$selector\r\n");
   undef $/; # slurp
   my $text = <$socket>;
@@ -223,10 +225,11 @@ sub process_request {
     }
     return password_required() if not password_matches($header{"proxy-authorization"});
     my ($method, $path, $version) = split(/\s+/, $request);
-    return error("400 BAD REQUEST", "only GET supported") unless $method eq "GET";
+    return $self->error("400 BAD REQUEST", "this proxy only handles unencrypted servers") if $method eq "CONNECT";
+    return $self->error("400 BAD REQUEST", "http only supports GET") unless $method eq "GET";
     my $url = Mojo::URL->new($path);
-    return error("400 BAD REQUEST", "no user info supported") if $url->userinfo;
-    return error("400 BAD REQUEST", "you must use the http scheme") unless $url->scheme eq "http";
+    return $self->error("400 BAD REQUEST", "you must use http URLs") unless $url->scheme eq 'http';
+    return $self->error("400 BAD REQUEST", "no user info supported") if $url->userinfo;
     $self->log(4, "Proxying $url");
     my $host = $url->host;
     my $port = $url->port || 70;
@@ -234,7 +237,7 @@ sub process_request {
     my $itemtype = "1";  # default is menu
     if ($url->path ne '' and $url->path ne '/') {
       $itemtype = substr($url->path, 1, 1);
-      return error("400 BAD REQUEST", "Gopher item type must be 0 or 1, not " . $itemtype)
+      return $self->error("400 BAD REQUEST", "Gopher item type must be 0 or 1, not " . $itemtype)
 	  if $itemtype ne "0" and $itemtype ne "1";
       $selector .= substr($url->path, 2);
       $selector .= "?" . $url->query     if $url->query ne "";
