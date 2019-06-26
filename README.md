@@ -130,7 +130,7 @@ The most important options for beginners are probably these:
 Securing your Server
 --------------------
 
-If you want to use SSL, you need to provide PEM files containing
+If you want to use TLS, you need to provide PEM files containing
 certificate and private key. To create self-signed files, for example:
 
 ```
@@ -203,9 +203,9 @@ Nimi Ilo
 ========
 
 This is a web proxy. It's a ludicrous idea. Start it up much like the
-[server](#nimi-mute). It doesn't support the `dir`, `index` and `max`
-options. The idea is that some kind soul sets it up on the net and you
-can use your browser to read Gopher pages by setting up a web proxy.
+[server](#nimi-mute). The idea is that some kind soul sets it up on
+the net and you can use your browser to read Gopher pages by setting
+up a web proxy.
 
 Examples:
 
@@ -230,3 +230,62 @@ audience? `w3m` users?
 
 Are you really expecting people to configure proxy settings per
 profile?
+
+Options
+-------
+
+The section above about [options](#options) applies, that is: It
+implements [Net::Server](https://metacpan.org/pod/Net::Server) and
+thus [all the options](https://metacpan.org/pod/Net::Server#DEFAULT-ARGUMENTS-FOR-Net::Server)
+available to `Net::Server` are also available here.
+
+Additionally, the following options are used:
+
+```
+--password  - this is the password if you don't want to run a public proxy
+```
+
+You can set it via an environment variable:
+
+```
+NIMI_ILO_PASSWORD
+```
+
+Users can provide any username you want. We're not checking it, and
+we're not logging it.
+
+An insecure setup for development would therefore be:
+
+```
+perl nimi-ilo.pl --port 7080 --log_level 4 --password admin
+```
+
+Securing your Proxy
+-------------------
+
+If you want to use TLS, you need to provide PEM files containing
+certificate and private key. To create self-signed files, for example:
+
+```
+openssl req -new -x509 -days 365 -nodes -out \
+        server-cert.pem -keyout server-key.pem
+```
+
+Make sure the common name you provide matches your domain name!
+
+Start server with these two files:
+
+```
+perl nimi-ilo.pl --port 7081 --log_level=4 --password admin\
+                 --cert_file=server-cert.pem --key_file=server-key.pem
+```
+
+Use any of the tools to test. Note that `curl` needs the
+`--proxy-insecure` flag when testing with self-signed certificates.
+
+```
+curl --proxy-insecure -U alex:admin -x https://localhost:7081 http://alexschroeder.ch
+```
+
+I don't know how to tell the other clients (`lynx`, `w3m`, Firefox)
+how to use a proxy with a self-signed certificate.
