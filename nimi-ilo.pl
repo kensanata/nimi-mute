@@ -21,6 +21,7 @@ use Mojo::URL;
 use Encode;
 
 # Sadly, we need this information before doing anything else
+my $scheme;
 my %args = (proto => 'ssl');
 for (grep(/--(key|cert)_file=/, @ARGV)) {
   $args{SSL_cert_file} = $1 if /--cert_file=(.*)/;
@@ -30,8 +31,10 @@ if ($args{SSL_cert_file} and not $args{SSL_key_file}
     or not $args{SSL_cert_file} and $args{SSL_key_file}) {
   die "I must have both --key_file and --cert_file\n";
 } elsif ($args{SSL_cert_file} and $args{SSL_key_file}) {
+  $scheme = "https";
   Nimi::Ilo->run(%args);
 } else {
+  $scheme = "http";
   Nimi::Ilo->run;
 }
 
@@ -129,6 +132,15 @@ sub serve_text {
   print "$text\r\n";
 }
 
+sub serve_html {
+  my $self = shift;
+  my $html = shift;
+  print "HTTP/1.0 200 OK\r\n";
+  print "Content-Type: text/html; charset UTF-8\r\n";
+  print "\r\n";
+  print "$html\r\n";
+}
+
 sub get_text {
   my $self = shift;
   my $host = shift;
@@ -150,6 +162,24 @@ sub get_text {
   return decode('UTF-8', $text);
 }
 
+sub get_menu {
+  my $buf = "<pre>";
+  $_ = get_text(@_);
+  for (split /\r?\n/) {
+    if (/^(?<type>[01])(?<name>[^\t\n]+)\t(?<selector>[^\t\n]+)\t(?<host>[^\t\n]+)\t(?<port>\d+)$/) {
+      # gopher map: gopher link
+      my $text = $+{name};
+      my $url = "$scheme://$+{host}:$+{port}/$+{type}$+{selector}";
+      $buf .= qq{<a href="$url">$text</a>\n};
+    } elsif (/^i([^\t\n]*)\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*$/) {
+      # gopher map: information
+      $buf .= "$1\n";
+    }
+  }
+  $buf .= "</pre>";
+  return $buf;
+}
+
 sub process_request {
   my $self = shift;
 
@@ -168,7 +198,8 @@ sub process_request {
     $self->log(4, "Proxying $url");
     my $host = $url->host;
     my $port = $url->port || 70;
-    my $selector;
+    my $selector = ''; # default is empty
+    my $itemtype = 1;  # default is menu
     if ($url->path ne '' and $url->path ne '/') {
       my $itemtype = substr($url->path, 1, 1);
       return error("400 BAD REQUEST", "Gopher item type must be 0 or 1, not " . $itemtype)
@@ -176,10 +207,12 @@ sub process_request {
       $selector .= substr($url->path, 2);
       $selector .= "?" . $url->query     if $url->query ne "";
       $selector .= "#" . $url->fragment  if $url->fragment;
-    } else {
-      $selector = "";
     }
-    $self->serve_text($self->get_text($host, $port, $selector));
+    if ($itemtype == "0") {
+      $self->serve_text($self->get_text($host, $port, $selector));
+    } else {
+      $self->serve_html($self->get_menu($host, $port, $selector));
+    }
     $self->log(4, "Done");
   }
 }

@@ -216,4 +216,17 @@ perl nimi-ilo.pl --port 7080 --log_level=4
 curl -x http://localhost:7080/ http://alexschroeder.ch:70/0Alex_Schroeder
 # use an environment variable to tell lynx about the proxy
 http_proxy=http://localhost:7080/ lynx http://alexschroeder.ch:70/0Alex_Schroeder
+# use an environment variable to tell w3m about the proxy
+http_proxy=http://localhost:7080/ w3m http://alexschroeder.ch:70/0Alex_Schroeder
 ```
+
+I think this is a bad idea! You would need a special profile for your
+browser where you could selectively enable or disable this proxy
+setting as the proxy setting makes it impossible to serve the normal
+web. `lynx` handles Gopher out of the box. If you want to use `curl`,
+you might as well use `echo` and `nc` (`netcat`) as follows: `echo
+Alex_Schroeder | nc alexschroeder.ch 70`. So who is your target
+audience? `w3m` users?
+
+Are you really expecting people to configure proxy settings per
+profile?
