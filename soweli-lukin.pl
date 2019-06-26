@@ -218,8 +218,13 @@ sub fix {
 }
 
 sub query {
-  my ($c, $host, $port, $selector) = @_;
+  my ($self, $host, $port, $selector) = @_;
   $log->info("Querying $host:$port with '$selector'");
+  local $SIG{'ALRM'} = sub {
+    $self->log(2, "Timeout!");
+    return '', markdown("Timeout from $host:$port using $selector");
+  };
+  alarm(5); # timeout
   # create client
   my $socket = IO::Socket::IP->new(
     PeerHost => $host,
