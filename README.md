@@ -213,12 +213,16 @@ Examples:
 # startup proxy (with more log messages)
 perl nimi-ilo.pl --port 7080 --log_level=4
 # use the -x option to tell curl about the proxy
-curl -x http://localhost:7080/ http://alexschroeder.ch:70/0Alex_Schroeder
+curl -x http://localhost:7080/ http://alexschroeder.ch
 # use an environment variable to tell lynx about the proxy
-http_proxy=http://localhost:7080/ lynx http://alexschroeder.ch:70/0Alex_Schroeder
+http_proxy=http://localhost:7080/ lynx http://alexschroeder.ch
 # use an environment variable to tell w3m about the proxy
-http_proxy=http://localhost:7080/ w3m http://alexschroeder.ch:70/0Alex_Schroeder
+http_proxy=http://localhost:7080/ w3m http://alexschroeder.ch
 ```
+
+Note how you need specify HTTP as the protocol because your browser is
+speaking HTTP to the proxy. The proxy speaks Gopher to the upstream
+server, i.e. `alexschroeder.ch` on port 70 in this case.
 
 I think this is a bad idea! You would need a special profile for your
 browser where you could selectively enable or disable this proxy
