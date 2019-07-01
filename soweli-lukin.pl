@@ -259,6 +259,7 @@ sub handle {
   my $host = shift;
   my $port = shift;
   $md = quote_html($md);
+  $error = markdown($error) if $error;
   my $url = $c->param('url');
   if ($c->param('raw')) {
     $c->render(template => 'index', url => $url, md => $md, error => $error, raw => 1);
@@ -274,19 +275,19 @@ sub handle {
 sub get_text {
   my $c = shift;
   my $str = shift;
-  return handle($c, '', markdown('Use a Gopher URL like gopher://alexschroeder.ch '
-		. 'or gophers://alexschroeder.ch:7443 to get started'))
+  return handle($c, 'Use a Gopher URL like gopher://alexschroeder.ch '
+		. 'or gophers://alexschroeder.ch:7443 to get started')
       if not $str;
   $log->info("Getting $str");
 
   my $url = Mojo::URL->new($str);
-  return handle($c, '', markdown(sprintf("URL scheme must be `gopher` or `gophers`, not %s",
-					 $url->scheme || 'empty')))
+  return handle($c, '', sprintf("URL scheme must be `gopher` or `gophers`, not %s",
+				$url->scheme || 'empty'))
       unless $url->scheme eq 'gopher' or $url->scheme eq 'gophers';
 
   my $tls = $c->param('tls');
 
-  return handle($c, '', markdown(sprintf("Please uncheck the TLS checkbox before following a `gopher` link")))
+  return handle($c, '', sprintf("Please uncheck the TLS checkbox before following a `gopher` link"))
       if $tls and $url->scheme eq 'gopher';
 
   if (not $tls and $url->scheme eq 'gophers') {
@@ -298,8 +299,8 @@ sub get_text {
   my $selector;
   if ($url->path ne '' and $url->path ne '/') {
     my $itemtype = substr($url->path, 1, 1);
-    return handle($c, '', markdown(sprintf("Gopher item type must be `0` or `1`, not %s",
-					   $itemtype || 'empty')))
+    return handle($c, '', sprintf("Gopher item type must be `0` or `1`, not %s",
+				  $itemtype || 'empty'))
 	if length($url->path) > 0 and not ($itemtype eq "0" or $itemtype eq "1");
 
     $selector .= substr($url->path, 2);
