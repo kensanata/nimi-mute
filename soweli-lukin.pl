@@ -19,7 +19,7 @@
 use Modern::Perl;
 use Mojolicious::Lite;
 use Text::Markdown 'markdown';
-use IO::Socket::IP;
+use Mojo::IOLoop;
 use URI::Find;
 use Mojo::Log;
 use List::Util qw(max);
@@ -27,8 +27,8 @@ use Encode;
 use feature 'unicode_strings';
 
 plugin Config => {default => {
-  loglevel => 'info',
-  logfile => 'soweli-lukin.log', }};
+  loglevel => 'debug',
+  logfile => '', }};
 
 my $log = Mojo::Log->new;
 $log->level(app->config('loglevel'));
@@ -67,7 +67,7 @@ sub process {
   s!(\[\d+\])_! $1!g;
   # fix markup for the references at the end, too
   s!^\.\. (\[\d+\]) : __!$1:!gm;
-  my $buf;
+  my $buf = '';
   my $n = 0;
   my $list = 0;
   while (1) {
@@ -218,43 +218,58 @@ sub fix {
 }
 
 sub query {
-  my ($self, $host, $port, $selector) = @_;
+  my ($c, $host, $port, $selector) = @_;
   $log->info("Querying $host:$port with '$selector'");
-  local $SIG{'ALRM'} = sub {
-    $self->log(2, "Timeout!");
-    return '', markdown("Timeout from $host:$port using $selector");
-  };
-  alarm(5); # timeout
-  # create client
-  my $socket = IO::Socket::IP->new(
-    PeerHost => $host,
-    PeerPort => $port,
-    Type     => SOCK_STREAM,
-    Timeout  => 3, )
-      or return '', markdown("Cannot connect to $host:$port: $@");
-  $socket->print("$selector\r\n");
-  undef $/; # slurp
-  my $text = <$socket>;
-  $socket->close(); # be explicit
-  return '', markdown("No data received from $host:$port using $selector")
-      unless length($text) > 0;
-  return decode('UTF-8', $text);
+  my $buf;
+  my $id = Mojo::IOLoop->client({address => $host, port => $port} => sub {
+    my ($loop, $err, $stream) = @_;
+    return handle($c, '', markdown("Unable to connect to $host:$port")) unless $stream;
+    $stream->on(read => sub {
+      my ($stream, $bytes) = @_;
+      $log->debug("Received " . length($bytes) . " bytes");
+      $buf .= $bytes });
+    $stream->on(close => sub {
+      my $loop = shift;
+      $log->debug("Stream closed: " . length($buf) . " bytes received");
+      handle($c, decode('UTF-8', $buf))});
+    $log->debug("Connected to $host:$port and sending '$selector'");
+    $stream->write("$selector\r\n")});
+  Mojo::IOLoop->start unless Mojo::IOLoop->is_running;
+}
+
+sub handle {
+  my $c = shift;
+  my $md = shift;
+  my $error = shift;
+  $md = quote_html($md);
+  my $url = $c->param('url');
+  if ($c->param('raw')) {
+    $c->render(template => 'index', url => $url, md => $md, error => $error, raw => 1);
+  } else {
+    $md = process($c, $md);
+    $md = quote_ascii_art($md);
+    my $html = $md ? fix(markdown($md)) : '';
+    $c->render(template => 'index', url => $url, md => $html, error => $error, raw => undef);
+  }
 }
 
 # return (text, error)
 sub get_text {
   my $c = shift;
   my $str = shift;
-  return 'Use a Gopher URL like gopher://alexschroeder.ch to get started' unless $str;
+  return handle($c, 'Use a Gopher URL like gopher://alexschroeder.ch to get started')
+      unless $str;
 
   my $url = Mojo::URL->new($str);
-  return '', markdown(sprintf("URL scheme must be `gopher` or `gophers`, not %s", $url->scheme || 'empty'))
+  return handle($c, '', markdown(sprintf("URL scheme must be `gopher` or `gophers`, not %s",
+					 $url->scheme || 'empty')))
       unless $url->scheme eq 'gopher' or $url->scheme eq 'gophers';
 
   my $selector;
   if ($url->path ne '' and $url->path ne '/') {
     my $itemtype = substr($url->path, 1, 1);
-    return '', markdown(sprintf("Gopher item type must be `0` or `1`, not %s", $itemtype || 'empty'))
+    return handle($c, '', markdown(sprintf("Gopher item type must be `0` or `1`, not %s",
+					   $itemtype || 'empty')))
 	if length($url->path) > 0 and not ($itemtype eq "0" or $itemtype eq "1");
 
     $selector .= substr($url->path, 2);
@@ -262,25 +277,15 @@ sub get_text {
     $selector .= "#" . $url->fragment  if $url->fragment;
   }
 
-  return query($c, $url->host, $url->port || 70, $selector || '');
+  query($c, $url->host, $url->port || 70, $selector || '');
 }
 
 get '/' => sub {
   my $c = shift;
   # Allow browsers and proxies to cache responses for 60s
   $c->res->headers->cache_control('public, max-age=60');
-  my $url = $c->param('url');
-  my $raw = $c->param('raw');
-  my ($md, $error) = get_text($c, $url);
-  $md = quote_html($md);
-  if ($raw) {
-    $c->render(template => 'index', url => $url, md => $md, error => $error, raw => $raw);
-  } else {
-    $md = process($c, $md);
-    $md = quote_ascii_art($md);
-    my $html = $md ? fix(markdown($md)) : '';
-    $c->render(template => 'index', url => $url, md => $html, error => $error, raw => $raw);
-  }
+  get_text($c, $c->param('url'));
+  $c->render_later;
 } => 'main';
 
 app->start;
@@ -302,8 +307,9 @@ __DATA__
 <div class="error">
 %== $error
 </div>
-% }
+% } else {
 <hr>
+% }
 <div class="<%= ($raw ? 'text' : 'markdown') =%>">
 %== $md
 </div>
