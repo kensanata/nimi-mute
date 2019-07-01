@@ -288,8 +288,11 @@ sub get_text {
   $log->info("Getting $str");
 
   my $url = Mojo::URL->new($str);
-  return handle($c, '', sprintf("URL scheme must be `gopher` or `gophers`, not %s",
-				$url->scheme || 'empty'))
+  if (not $url->scheme) {
+    $url = Mojo::URL->new("gopher://$str");
+    $c->param('url', $url);
+  }
+  return handle($c, '', sprintf("URL scheme must be `gopher` or `gophers`, not %s", $url->scheme))
       unless $url->scheme eq 'gopher' or $url->scheme eq 'gophers';
 
   my $tls = $c->param('tls');
