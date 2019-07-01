@@ -206,9 +206,10 @@ sub quote_ascii_art {
       # gopher://sdf.org:70/1/users/trnslts/feels/2019-05-13
       # gopher://sdf.org:70/0/users/dbucklin/posts/diction.txt
       my $definitions = () = grep /^[[:alpha:]].*:\s+.+/, split /\n/;
-      if ($definitions == $lines
-	  or $lines > 4 and $definitions == $lines - 1
-	  or $lines > 8 and $definitions == $lines - 2) {
+      if ($lines > 1
+	  and ($definitions == $lines
+	       or $lines > 4 and $definitions == $lines - 1
+	       or $lines > 8 and $definitions == $lines - 2)) {
 	$_ = qq{<pre class="definitions">\n$_\n</pre>};
       }
     }
