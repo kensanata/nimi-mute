@@ -75,6 +75,7 @@ sub process {
   my $buf = '';
   my $n = 0;
   my $list = 0;
+  my $blockquote = 0;
   while (1) {
     if (/\G^(?<type>[01])(?<name>[^\t\n]+)\t(?<selector>[^\t\n]+)\t(?<host>[^\t\n]+)\t(?<port>\d+)\n/cgm) {
       # gopher map: gopher link
@@ -135,12 +136,17 @@ sub process {
       $buf .= self_link($c, $1, $1);
     } elsif (/\G\[(\/?)quote\]/cg) {
       $buf .= "<$1blockquote>";
+    } elsif (/\G"""/cg) {
+      $buf .= $blockquote ? "</blockquote>" :  "<blockquote>";
+      $blockquote = not $blockquote;
+    } elsif (/\G^```.*?```/cgms) {
+      $buf .= "<pre>$1</pre>";
     } elsif (/\G(\s+)/cg) {
       $buf .= $1;
     } elsif (/\G(\w+)/cg) {
       $buf .= $1;
     } elsif (/\G(.)/cgm) {
-      # Punctiation and the like is handled one character at a time such that we
+      # Punctuation and the like is handled one character at a time such that we
       # can handle things like [quote](a quote)[/quote]. If we handled multiple
       # punctuation characters at once, the parser would skip over ")[" and not
       # recognize "[/quote]".
