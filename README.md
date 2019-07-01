@@ -199,6 +199,13 @@ This makes the application available locally on port 3000. Use your
 web browser to test it. If you make changes to the source code,
 *Morbo* automatically reloads it.
 
+Alternatives
+------------
+
+[gopherproxy](https://git.feuerfuchs.dev/Feuerfuchs/gopherproxy) by
+Feuerfuchs is written in Go. There's an installation available at
+[gopher.feuerfuchs.dev](https://gopher.feuerfuchs.dev/g.feuerfuchs.dev/).
+
 Nimi Ilo
 ========
 
