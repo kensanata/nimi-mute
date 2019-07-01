@@ -49,13 +49,18 @@ sub self_link {
 sub rewrite_gopher {
   my $c = shift;
   my $url = shift;
-  return $c->url_for('main')->query( url => $url ) if $url =~ /^gopher/;
+  my $tls = $c->param('tls');
+  my %params = (url => $url);
+  $params{tls} = 1 if $tls;
+  return $c->url_for('main')->query( %params ) if $url =~ /^gopher/;
   return $url;
 }
 
 sub process {
   my $c = shift;
   $_ = shift;
+  my $host = shift;
+  my $port = shift;
   return unless defined $_;
   # the DOS line endings cause needless confusion
   s!\r\n!\n!g;
@@ -74,10 +79,20 @@ sub process {
     if (/\G^(?<type>[01])(?<name>[^\t\n]+)\t(?<selector>[^\t\n]+)\t(?<host>[^\t\n]+)\t(?<port>\d+)\n/cgm) {
       # gopher map: gopher link
       my $text = $+{name};
-      my $url = "gopher://$+{host}:$+{port}/$+{type}$+{selector}";
-      $url = $c->url_for('main')->query( url => $url );
+      my $scheme = 'gopher';
+      my $tls = $c->param('tls');
+      if ($tls and $+{host} eq $host and $+{port} eq $port) {
+	# if we're on the same server, use the secure scheme
+	$scheme .= 's';
+      }
+      my $url = rewrite_gopher($c, "$scheme://$+{host}:$+{port}/$+{type}$+{selector}");
       $buf .= "\n" unless $list++;
-      $buf .= "* [$text]($url)\n";
+      $buf .= "* [$text]($url)";
+      if ($tls and ($+{host} ne $host or $+{port} ne $port)) {
+	# if the link goes elsewhere, warn the user
+	$buf .= ' 🔓';
+      }
+      $buf .= "\n";
     } elsif (/\G^h([^\t\n]+)\tURL:([^\t\n]+)\t[^\t\n]*\t[^\t\n]*\n/cgm) {
       # gopher map: hyper link
       my $text = $1;
@@ -218,20 +233,20 @@ sub fix {
 }
 
 sub query {
-  my ($c, $host, $port, $selector) = @_;
-  $log->info("Querying $host:$port with '$selector'");
-  my $buf;
-  my $id = Mojo::IOLoop->client({address => $host, port => $port} => sub {
+  my ($c, $host, $port, $selector, $tls) = @_;
+  $log->info("Querying $host:$port with '$selector' (TLS=$tls)");
+  my $buf = '';
+  my $id = Mojo::IOLoop->client({address => $host, port => $port, tls => $tls} => sub {
     my ($loop, $err, $stream) = @_;
     return handle($c, '', markdown("Unable to connect to $host:$port")) unless $stream;
     $stream->on(read => sub {
       my ($stream, $bytes) = @_;
-      $log->debug("Received " . length($bytes) . " bytes");
+      # $log->debug("Received " . length($bytes) . " bytes");
       $buf .= $bytes });
     $stream->on(close => sub {
       my $loop = shift;
       $log->debug("Stream closed: " . length($buf) . " bytes received");
-      handle($c, decode('UTF-8', $buf))});
+      handle($c, decode('UTF-8', $buf), '', $host, $port)});
     $log->debug("Connected to $host:$port and sending '$selector'");
     $stream->write("$selector\r\n")});
   Mojo::IOLoop->start unless Mojo::IOLoop->is_running;
@@ -241,12 +256,14 @@ sub handle {
   my $c = shift;
   my $md = shift;
   my $error = shift;
+  my $host = shift;
+  my $port = shift;
   $md = quote_html($md);
   my $url = $c->param('url');
   if ($c->param('raw')) {
     $c->render(template => 'index', url => $url, md => $md, error => $error, raw => 1);
   } else {
-    $md = process($c, $md);
+    $md = process($c, $md, $host, $port);
     $md = quote_ascii_art($md);
     my $html = $md ? fix(markdown($md)) : '';
     $c->render(template => 'index', url => $url, md => $html, error => $error, raw => undef);
@@ -257,13 +274,26 @@ sub handle {
 sub get_text {
   my $c = shift;
   my $str = shift;
-  return handle($c, 'Use a Gopher URL like gopher://alexschroeder.ch to get started')
-      unless $str;
+  return handle($c, '', markdown('Use a Gopher URL like gopher://alexschroeder.ch '
+		. 'or gophers://alexschroeder.ch:7443 to get started'))
+      if not $str;
+  $log->info("Getting $str");
 
   my $url = Mojo::URL->new($str);
   return handle($c, '', markdown(sprintf("URL scheme must be `gopher` or `gophers`, not %s",
 					 $url->scheme || 'empty')))
       unless $url->scheme eq 'gopher' or $url->scheme eq 'gophers';
+
+  my $tls = $c->param('tls');
+
+  return handle($c, '', markdown(sprintf("Please uncheck the TLS checkbox before following a `gopher` link")))
+      if $tls and $url->scheme eq 'gopher';
+
+  if (not $tls and $url->scheme eq 'gophers') {
+    $tls = 1;
+    $c->param('tls', 1);
+    $log->debug("Upgrading $str to TLS");
+  }
 
   my $selector;
   if ($url->path ne '' and $url->path ne '/') {
@@ -277,7 +307,7 @@ sub get_text {
     $selector .= "#" . $url->fragment  if $url->fragment;
   }
 
-  query($c, $url->host, $url->port || 70, $selector || '');
+  query($c, $url->host, $url->port || 70, $selector || '', $tls || '0');
 }
 
 get '/' => sub {
@@ -301,6 +331,8 @@ __DATA__
 %= text_field url => $url, id => 'url'
 %= label_for raw => 'plain text'
 %= check_box raw => 1, id => 'raw'
+%= label_for tls => 'TLS'
+%= check_box tls => 1, id => 'tls'
 %= submit_button 'Go'
 % end
 % if ($error) {
