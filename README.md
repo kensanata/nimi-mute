@@ -210,8 +210,8 @@ Nimi Ilo
 
 This is a web proxy. It's a ludicrous idea. Start it up much like the
 [server](#nimi-mute). The idea is that some kind soul sets it up on
-the net and you can use your browser to read Gopher pages by setting
-up a web proxy.
+the net and you can use configure your browser to use it in order to
+read Gopher pages.
 
 Examples:
 
