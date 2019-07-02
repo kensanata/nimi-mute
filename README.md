@@ -245,9 +245,9 @@ profile?
 Options
 -------
 
-The section above about [options](#options) applies, that is: It
-implements [Net::Server](https://metacpan.org/pod/Net::Server) and
-thus [all the options](https://metacpan.org/pod/Net::Server#DEFAULT-ARGUMENTS-FOR-Net::Server)
+It implements [Net::Server](https://metacpan.org/pod/Net::Server) and
+thus [all the
+options](https://metacpan.org/pod/Net::Server#DEFAULT-ARGUMENTS-FOR-Net::Server)
 available to `Net::Server` are also available here.
 
 Additionally, the following options are used:
@@ -262,7 +262,7 @@ You can set it via an environment variable:
 NIMI_ILO_PASSWORD
 ```
 
-Users can provide any username you want. We're not checking it, and
+Users can provide any username they want. We're not checking it, and
 we're not logging it.
 
 An insecure setup for development would therefore be:
