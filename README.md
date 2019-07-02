@@ -147,9 +147,8 @@ perl nimi-mute.pl --port 7079 --log_level=4 \
                   --cert_file=server-cert.pem --key_file=server-key.pem
 ```
 
-Use `gnutls-cli` to test, using `--insecure` because in this setup,
-this is a self-signed key. A small delay is required before send our
-request...
+Use `gnutls-cli` to test, using `--insecure` because this is a
+self-signed key. A small delay is required before sending the request:
 
 ```
 (sleep 1; echo) | gnutls-cli --insecure melanobombus:7079
