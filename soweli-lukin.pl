@@ -268,7 +268,20 @@ sub quote_ascii_art {
 	  and ($definitions == $lines
 	       or $lines > 4 and $definitions == $lines - 1
 	       or $lines > 8 and $definitions == $lines - 2)) {
-	$_ = qq{<pre class="definitions">\n$_\n</pre>};
+	my $table = "<table>";
+	my $col1 = 1;
+	for my $term (split /^([[:alpha:]].*):\s+/m) {
+	  if ($col1) {
+	    next unless $term; # first field is always empty
+	    $table .= "<tr><td>$term</td>";
+	  } else {
+	    $table .= "<td>$term</td></tr>";
+	  }
+	  $col1 = not $col1;
+	}
+	$table .= "</table>";
+	$_ = $table;
+	# $_ = qq{<pre class="definitions">\n$_\n</pre>};
       }
     }
     # my @alnums = /[[:alnum:]]/g;
