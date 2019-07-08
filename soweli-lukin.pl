@@ -210,6 +210,22 @@ sub quote_ascii_art {
   $_ = shift;
   return unless defined $_;
   my @paragraphs = split(/\n\s*\n/);
+  # first, let's detect headlines lacking a newline
+  # gopher://gopher.club:70/1/users/ayaron/
+  for (@paragraphs) {
+    # remove leading space for entire paragraph
+    s/^ //gm if /^( .*\n?)+$/;
+    # add empty line after heading if required
+    s/^(.+)\n(=+)\n\b/
+	if (length($1) == length($2)) {
+          "$1\n$2\n\n"
+        } else {
+          "$1\n$2\n"
+        }/e;
+  }
+  $_ = join "\n\n", @paragraphs;
+  # actual ASCII art detection
+  @paragraphs = split(/\n\s*\n/);
   # compute length of "most lines"
   # my @length = sort { $a <=> $b } map { length } grep /^[[:alnum:]]/, split /\n/;
   # my $short = max $length[$#length] - 20, $length[int($#length * 0.8)];
