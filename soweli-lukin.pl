@@ -139,7 +139,18 @@ sub process {
     } elsif (/\G"""/cg) {
       $buf .= $blockquote ? "</blockquote>" :  "<blockquote>";
       $blockquote = not $blockquote;
-    } elsif (/\G^```.*?```/cgms) {
+    } elsif (/\G^```\n(.*?\n)```/cgms) {
+      $buf .= "<pre>$1</pre>";
+    } elsif (/\G^---\n((?:.*:.*\n)+)---/cgm) {
+      # Example for meta-data table:
+      # gopher://sdf.org:70/0/users/frrobert/GopherBlog/VimwikiontheCommandline.wiki
+      $buf .= "<table>"
+	  . (join "",
+	     map { "<tr>$_</tr>" }
+	     map { join "", map { "<td>$_</td>" } split /: */, $_, 2 }
+	     split "\n", $1)
+	  . "</table>";
+    } elsif (/\G^---\n(.*?)\n---/cgms) {
       $buf .= "<pre>$1</pre>";
     } elsif (/\G(\s+)/cg) {
       $buf .= $1;
@@ -379,6 +390,7 @@ body {
   padding: 1em;
   font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
 }
+td { padding-right: 1em }
 #url { width: 50ex }
 .error { font-weight: bold; color: red }
 .text { white-space: pre; font-family: mono }
