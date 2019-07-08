@@ -113,6 +113,7 @@ sub process {
       my $url = rewrite_gopher($c, $1);
       $buf .= "[[$n]($url)]";
     } elsif (/\G\[($uri_re) ([^]\n]+)\]/cg) {
+      # wikipedia style links: [URL text]
       my $text = $2;
       my $url = rewrite_gopher($c, $1);
       $buf .= "[$text]($url)";
@@ -127,22 +128,40 @@ sub process {
       my $url = rewrite_gopher($c, $2);
       $buf .= "$ref: $url";
     } elsif (/\G($uri_re)/cg) {
+      # free URLs
       my $text = $1;
       my $url = rewrite_gopher($c, $1);
       $buf .= "[$text]($url)";
     } elsif (/\G\[\[([^]\n]+)\|([^]\n]+)\]\]/cg) {
+      # internal links [[page|text]]
       $buf .= self_link($c, $1, $2);
     } elsif (/\G\[\[([^]\n]+)\]\]/cg) {
+      # internal links [[page]]
       $buf .= self_link($c, $1, $1);
     } elsif (/\G\[(\/?)quote\]/cg) {
+      # bbCode blockquotes
+      # [quote]
+      # foo
+      # [/quote]
       $buf .= "<$1blockquote>";
     } elsif (/\G"""/cg) {
+      # Markdown-like fencing for blockquote
+      # """
+      # foo
+      # """
       $buf .= $blockquote ? "</blockquote>" :  "<blockquote>";
       $blockquote = not $blockquote;
     } elsif (/\G^```\n(.*?\n)```/cgms) {
+      # Markdown-like fencing for code
+      # ```
+      # foo
+      # ```
       $buf .= "<pre>$1</pre>";
     } elsif (/\G^---\n((?:.*:.*\n)+)---/cgm) {
-      # Example for meta-data table:
+      # YAML formatted meta-data
+      # ---
+      # foo: bar
+      # ---
       # gopher://sdf.org:70/0/users/frrobert/GopherBlog/VimwikiontheCommandline.wiki
       $buf .= "<table>"
 	  . (join "",
@@ -151,10 +170,16 @@ sub process {
 	     split "\n", $1)
 	  . "</table>";
     } elsif (/\G^---\n(.*?)\n---/cgms) {
+      # Malformed YAML meta data?
+      # ---
+      # foo bar
+      # ---
       $buf .= "<pre>$1</pre>";
     } elsif (/\G(\s+)/cg) {
+      # stretches of whitespace
       $buf .= $1;
     } elsif (/\G(\w+)/cg) {
+      # stretches of word constituents
       $buf .= $1;
     } elsif (/\G(.)/cgm) {
       # Punctuation and the like is handled one character at a time such that we
