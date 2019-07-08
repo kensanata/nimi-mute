@@ -435,6 +435,7 @@ __DATA__
 <hr>
 <p>
 <a href="https://alexschroeder.ch/cgit/nimi-mute/about/#soweli-lukin">Soweli Lukin</a>&#x2003;
+<a href="https://alexschroeder.ch/software/Nimi_Mute">Issues</a>&#x2003;
 <a href="https://alexschroeder.ch/wiki/Contact">Alex Schroeder</a>
 </body>
 </html>
