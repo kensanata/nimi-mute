@@ -317,10 +317,10 @@ sub handle {
   my $error = shift;
   my $host = shift;
   my $port = shift;
-  $md = quote_html($md);
   $error = markdown($error) if $error;
   my $url = $c->param('url');
   if ($c->param('raw')) {
+    $md = quote_html($md);
     $c->render(template => 'index', url => $url, md => $md, error => $error, raw => 1);
   } else {
     $md = process($c, $md, $host, $port);
