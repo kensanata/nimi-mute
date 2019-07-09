@@ -77,7 +77,7 @@ sub process {
   my $list = 0;
   my $blockquote = 0;
   while (1) {
-    if (/\G^(?<type>[01])(?<name>[^\t\n]+)\t(?<selector>[^\t\n]+)\t(?<host>[^\t\n]+)\t(?<port>\d+)\n/cgm) {
+    if (/\G^(?<type>[01])(?<name>[^\t\n]+)\t(?<selector>[^\t\n]+)\t(?<host>[^\t\n]+)\t(?<port>\d+).*\n/cgm) {
       # gopher map: gopher link
       my $text = $+{name};
       my $scheme = 'gopher';
@@ -94,18 +94,18 @@ sub process {
 	$buf .= ' 🔓';
       }
       $buf .= "\n";
-    } elsif (/\G^h([^\t\n]+)\tURL:([^\t\n]+)\t[^\t\n]*\t[^\t\n]*\n/cgm) {
+    } elsif (/\G^h([^\t\n]+)\tURL:([^\t\n]+)\t[^\t\n]*\t[^\t\n]*.*\n/cgm) {
       # gopher map: hyper link
       my $text = $1;
       my $url = rewrite_gopher($c, $2);
       $buf .= "\n" unless $list++;
       $buf .= "* [$text]($url)\n";
-    } elsif (/\G^i([^\t\n]*)\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\n/cgm) {
+    } elsif (/\G^i([^\t\n]*)\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*.*\n/cgm) {
       # gopher map: information
       $buf .= "\n" if $list;
       $buf .= "$1\n";
       $list = 0;
-    } elsif (/\G^.[^\t\n]*\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\n/cgm) {
+    } elsif (/\G^.[^\t\n]*\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\n.*/cgm) {
       # gopher map!
       # all other gopher types are not supported
     } elsif (/\G\[($uri_re)\]/cg) {
@@ -238,8 +238,10 @@ sub quote_ascii_art {
       # Do nothing: these are Markdown headings.
     } elsif ($punctuation + $spaces > $alphanums) {
       # When counting list items, make sure we don't count ** as a list item.
-      # Example: gopher://gopher.floodgap.com/
-      if ($lines == (() = /^\*[^*].+/gm)) {
+      # gopher://gopher.floodgap.com/
+      # Make sure we require a space after the asterisk.
+      # gopher://gopher.prismdragon.net/
+      if ($lines == (() = /^\* .*/gm)) {
 	# If all the ASCII art looks like it could be list items, then let's
 	# wrap it all in a code tag (such that Markdown still renders links).
 	# Adding the class here prevents fix() from touching it. Examples:
@@ -249,6 +251,7 @@ sub quote_ascii_art {
       } else {
 	# If there's a lot of punctiation compared to alphanumerics, it's probably
 	# ASCII art. Example: gopher://circumlunar.space:70/1/~cmccabe/
+	$_ = quote_html $_;
 	$_ = qq{<pre class="ascii">\n$_\n</pre>};
       }
     } elsif ($lines == (() = /^\*[^*].*   /gm)) {
