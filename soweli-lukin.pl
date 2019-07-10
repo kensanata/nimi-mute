@@ -76,9 +76,10 @@ sub process {
   my $n = 0;
   my $list = 0;
   my $blockquote = 0;
+  my $debug = $ENV{DEBUG};
   while (1) {
-    if (/\G^(?<type>[01])(?<name>[^\t\n]+)\t(?<selector>[^\t\n]+)\t(?<host>[^\t\n]+)\t(?<port>\d+).*\n/cgm) {
-      # gopher map: gopher link
+    if (/\G^(?<type>[01])(?<name>[^\t\n]*)\t(?<selector>[^\t\n]*)\t(?<host>[^\t\n]*)\t(?<port>\d*).*\n/cgm) {
+      # gopher map: gopher link (name is mandatory, all other fields are optional, including extra fields)
       my $text = $+{name};
       my $scheme = 'gopher';
       my $tls = $c->param('tls');
@@ -93,57 +94,71 @@ sub process {
 	# if the link goes elsewhere, warn the user
 	$buf .= ' 🔓';
       }
+      $buf .= "¹" if $debug;
       $buf .= "\n";
     } elsif (/\G^h([^\t\n]+)\tURL:([^\t\n]+)\t[^\t\n]*\t[^\t\n]*.*\n/cgm) {
       # gopher map: hyper link
       my $text = $1;
       my $url = rewrite_gopher($c, $2);
       $buf .= "\n" unless $list++;
-      $buf .= "* [$text]($url)\n";
+      $buf .= "* [$text]($url)";
+      $buf .= "²" if $debug;
+      $buf .= "\n";
     } elsif (/\G^i([^\t\n]*)\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*.*\n/cgm) {
       # gopher map: information
       $buf .= "\n" if $list;
-      $buf .= "$1\n";
+      $buf .= $1;
       $list = 0;
+      $buf .= "³" if $debug;
+      $buf .= "\n";
     } elsif (/\G^.[^\t\n]*\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\n.*/cgm) {
       # gopher map!
       # all other gopher types are not supported
+      $buf .= "⁴" if $debug;
     } elsif (/\G\[($uri_re)\]/cg) {
       $n++;
       my $url = rewrite_gopher($c, $1);
       $buf .= "[[$n]($url)]";
+      $buf .= "⁵" if $debug;
     } elsif (/\G\[($uri_re) ([^]\n]+)\]/cg) {
       # wikipedia style links: [URL text]
       my $text = $2;
       my $url = rewrite_gopher($c, $1);
       $buf .= "[$text]($url)";
+      $buf .= "⁶" if $debug;
     } elsif (/\G(\[[^]\n]+\]): ($uri_re)/cg) {
       # these references will get handled by Markdown
       my $ref = $1;
       my $url = rewrite_gopher($c, $2);
       $buf .= "$ref: $url";
+      $buf .= "⁶" if $debug;
     } elsif (/\G(\[[^]\n]+\]) ($uri_re)/cg) {
       # these "malformed" references will get handled by Markdown
       my $ref = $1;
       my $url = rewrite_gopher($c, $2);
       $buf .= "$ref: $url";
+      $buf .= "⁷" if $debug;
     } elsif (/\G($uri_re)/cg) {
       # free URLs
       my $text = $1;
       my $url = rewrite_gopher($c, $1);
       $buf .= "[$text]($url)";
+      $buf .= "⁸" if $debug;
     } elsif (/\G\[\[([^]\n]+)\|([^]\n]+)\]\]/cg) {
       # internal links [[page|text]]
       $buf .= self_link($c, $1, $2);
+      $buf .= "⁹" if $debug;
     } elsif (/\G\[\[([^]\n]+)\]\]/cg) {
       # internal links [[page]]
       $buf .= self_link($c, $1, $1);
+      $buf .= "¹⁰" if $debug;
     } elsif (/\G\[(\/?)quote\]/cg) {
       # bbCode blockquotes
       # [quote]
       # foo
       # [/quote]
       $buf .= "<$1blockquote>";
+      $buf .= "¹¹" if $debug;
     } elsif (/\G"""/cg) {
       # Markdown-like fencing for blockquote
       # """
@@ -151,12 +166,14 @@ sub process {
       # """
       $buf .= $blockquote ? "</blockquote>" :  "<blockquote>";
       $blockquote = not $blockquote;
+      $buf .= "¹²" if $debug;
     } elsif (/\G^```\n(.*?\n)```/cgms) {
       # Markdown-like fencing for code
       # ```
       # foo
       # ```
       $buf .= "<pre>$1</pre>";
+      $buf .= "¹³" if $debug;
     } elsif (/\G^---\n((?:.*:.*\n)+)---/cgm) {
       # YAML formatted meta-data
       # ---
@@ -169,18 +186,21 @@ sub process {
 	     map { join "", map { "<td>$_</td>" } split /: */, $_, 2 }
 	     split "\n", $1)
 	  . "</table>";
+      $buf .= "¹⁴" if $debug;
     } elsif (/\G^---\n(.*?)\n---/cgms) {
       # Malformed YAML meta data?
       # ---
       # foo bar
       # ---
       $buf .= "<pre>$1</pre>";
+      $buf .= "¹⁵" if $debug;
     } elsif (/\G(\s+)/cg) {
       # stretches of whitespace
       $buf .= $1;
     } elsif (/\G(\w+)/cg) {
       # stretches of word constituents
       $buf .= $1;
+      $buf .= "⁰" if $debug;
     } elsif (/\G(.)/cgm) {
       # Punctuation and the like is handled one character at a time such that we
       # can handle things like [quote](a quote)[/quote]. If we handled multiple
@@ -309,7 +329,7 @@ sub fix {
 
 sub query {
   my ($c, $host, $port, $selector, $tls) = @_;
-  $log->info("Querying $host:$port with '$selector' (TLS=$tls)");
+  $log->debug("Querying $host:$port with '$selector' (TLS=$tls)");
   my $buf = '';
   my $id = Mojo::IOLoop->client({address => $host, port => $port, tls => $tls} => sub {
     my ($loop, $err, $stream) = @_;

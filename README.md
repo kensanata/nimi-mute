@@ -198,6 +198,13 @@ This makes the application available locally on port 3000. Use your
 web browser to test it. If you make changes to the source code,
 *Morbo* automatically reloads it.
 
+If you start it with the `DEBUG` environment variable set, small
+superscripts show what rule was used when processing each fragment.
+
+```
+DEBUG=1 morbo soweli-lukin.pl
+```
+
 Alternatives
 ------------
 
