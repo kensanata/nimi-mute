@@ -25,6 +25,7 @@ use Mojo::Log;
 use List::Util qw(max);
 use Encode;
 use feature 'unicode_strings';
+use IO::Socket::SSL qw(SSL_VERIFY_NONE SSL_VERIFY_PEER);
 
 plugin Config => {default => {
   loglevel => 'debug',
@@ -52,7 +53,7 @@ sub rewrite_gopher {
   my $tls = $c->param('tls');
   my %params = (url => $url);
   $params{tls} = 1 if $tls;
-  return $c->url_for('main')->query( %params ) if $url =~ /^gopher/;
+  return $c->url_for('main')->query( %params ) if $url =~ /^(gopher|gemini)/;
   return $url;
 }
 
@@ -64,6 +65,8 @@ sub process {
   return unless defined $_;
   # the DOS line endings cause needless confusion
   s!\r\n!\n!g;
+  # Gemini
+  s!^20\ttext/(plain|gemini)\n!!;
   # these "malformed" references will get handled by Markdown
   s!\[(\d+,\d+)\]!" " . join(", ", map { "[$_]" } split(/,/, $1))!eg;
   # add a space before numerical references
@@ -111,9 +114,26 @@ sub process {
       $list = 0;
       $buf .= "³" if $debug;
       $buf .= "\n";
+    } elsif (/\G^=>[ \t]+(?<url>\S+)[ \t]*(?<text>.*)\n/cgm) {
+      # gemini link!
+      # => gemini://example.org/
+      # => gemini://example.org/ An example link
+      # => gemini://example.org/foo Another example link at the same host
+      # => foo/bar/baz.txt A relative link
+      # => gopher://example.org:70/1 A gopher link
+      my $text = $+{text} || $+{url};
+      my $url = Mojo::URL->new($+{url});
+      $url->scheme('gemini') unless $url->scheme;
+      $url->host($host) unless $url->host;
+      $url->port($port) unless $url->port;
+      $url = rewrite_gopher($c, $url);
+      $buf .= "\n" unless $list++;
+      $buf .= "* [$text]($url)";
+      $buf .= "¹⁷" if $debug;
+      $buf .= "\n";
     } elsif (/\G^.[^\t\n]*\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\n.*/cgm) {
       # gopher map!
-      # all other gopher types are not supported
+      # all other gopher types are not supported (must come after gemini links)
       $buf .= "⁴" if $debug;
     } elsif (/\G\[($uri_re)\]/cg) {
       $n++;
@@ -131,7 +151,7 @@ sub process {
       my $ref = $1;
       my $url = rewrite_gopher($c, $2);
       $buf .= "$ref: $url";
-      $buf .= "⁶" if $debug;
+      $buf .= "¹⁶" if $debug;
     } elsif (/\G(\[[^]\n]+\]) ($uri_re)/cg) {
       # these "malformed" references will get handled by Markdown
       my $ref = $1;
@@ -328,10 +348,10 @@ sub fix {
 }
 
 sub query {
-  my ($c, $host, $port, $selector, $tls) = @_;
+  my ($c, $host, $port, $selector, $tls, $verify) = @_;
   $log->debug("Querying $host:$port with '$selector' (TLS=$tls)");
   my $buf = '';
-  my $id = Mojo::IOLoop->client({address => $host, port => $port, tls => $tls} => sub {
+  my $id = Mojo::IOLoop->client({address => $host, port => $port, tls => $tls, tls_verify => $verify} => sub {
     my ($loop, $err, $stream) = @_;
     return handle($c, '', markdown("Unable to connect to $host:$port")) unless $stream;
     $stream->on(read => sub {
@@ -381,32 +401,47 @@ sub get_text {
     $c->param('url', $url);
   }
   return handle($c, '', sprintf("URL scheme must be `gopher` or `gophers`, not %s", $url->scheme))
-      unless $url->scheme eq 'gopher' or $url->scheme eq 'gophers';
+      unless $url->scheme eq 'gopher' or $url->scheme eq 'gophers' or $url->scheme eq 'gemini';
 
-  my $tls = $c->param('tls');
+  my $tls = $c->param('tls') || '0';
 
   return handle($c, '', sprintf("Please uncheck the TLS checkbox before following a `gopher` link"))
       if $tls and $url->scheme eq 'gopher';
 
+  my $verify = SSL_VERIFY_PEER; # check server certificates
   if (not $tls and $url->scheme eq 'gophers') {
     $tls = 1;
     $c->param('tls', 1);
-    $log->debug("Upgrading $str to TLS");
+    $log->info("Upgrading $str to TLS");
   }
+  if ($url->scheme eq 'gemini') {
+    $tls = 1;
+    $c->param('tls', 1);
+    $verify = SSL_VERIFY_NONE; # no check for server certificate
+    $log->info("Disabling certificate verification for $str");
+  }
+
+  my $port = $url->port;
+  $port ||= 70 if $url->scheme eq 'gopher';
+  $port ||= 1965 if $url->scheme eq 'gemini';
 
   my $selector;
-  if ($url->path ne '' and $url->path ne '/') {
-    my $itemtype = substr($url->path, 1, 1);
-    return handle($c, '', sprintf("Gopher item type must be `0` or `1`, not %s",
-				  $itemtype || 'empty'))
-	if length($url->path) > 0 and not ($itemtype eq "0" or $itemtype eq "1");
+  if ($url->scheme eq 'gopher' or $url->scheme eq 'gophers') {
+    if ($url->path ne '' and $url->path ne '/') {
+      my $itemtype = substr($url->path, 1, 1);
+      return handle($c, '', sprintf("Gopher item type must be `0` or `1`, not %s",
+				    $itemtype || 'empty'))
+	  if length($url->path) > 0 and not ($itemtype eq "0" or $itemtype eq "1");
 
-    $selector .= substr($url->path, 2);
-    $selector .= "?" . $url->query     if $url->query ne "";
-    $selector .= "#" . $url->fragment  if $url->fragment;
+      $selector .= substr($url->path, 2);
+      $selector .= "?" . $url->query     if $url->query ne "";
+      $selector .= "#" . $url->fragment  if $url->fragment;
+    }
+  } elsif ($url->scheme eq 'gemini') {
+    $selector = $url;
   }
 
-  query($c, $url->host, $url->port || 70, $selector || '', $tls || '0');
+  query($c, $url->host, $port, $selector || '', $tls, $verify);
 }
 
 get '/' => sub {
