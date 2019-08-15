@@ -135,6 +135,10 @@ sub process {
       # gopher map!
       # all other gopher types are not supported (must come after gemini links)
       $buf .= "⁴" if $debug;
+    } elsif (/\G(\[[^]]+\]\([^]\s]+\))/cg) {
+      # markdown links are passed through as-is: [text](URL)
+      $buf .= $1;
+      $buf .= "¹⁸" if $debug;
     } elsif (/\G\[($uri_re)\]/cg) {
       $n++;
       my $url = rewrite_gopher($c, $1);
