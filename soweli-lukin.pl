@@ -114,11 +114,12 @@ sub process {
       $list = 0;
       $buf .= "³" if $debug;
       $buf .= "\n";
-    } elsif (/\G^=>[ \t]+(?<url>\S+)[ \t]*(?<text>.*)\n/cgm) {
+    } elsif (/\G^=>[ \t]*(?<url>\S+)[ \t]*(?<text>.*)\n/cgm) {
       # gemini link!
       # => gemini://example.org/
       # => gemini://example.org/ An example link
       # => gemini://example.org/foo Another example link at the same host
+      # =>gemini://example.org/bar Yet another example link at the same host
       # => foo/bar/baz.txt A relative link
       # => gopher://example.org:70/1 A gopher link
       my $text = $+{text} || $+{url};
