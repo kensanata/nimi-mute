@@ -60,6 +60,7 @@ sub rewrite_gopher {
 sub process {
   my $c = shift;
   $_ = shift;
+  my $scheme = shift;
   my $host = shift;
   my $port = shift;
   return unless defined $_;
@@ -353,7 +354,7 @@ sub fix {
 }
 
 sub query {
-  my ($c, $host, $port, $selector, $tls, $verify) = @_;
+  my ($c, $scheme, $host, $port, $selector, $tls, $verify) = @_;
   $log->debug("Querying $host:$port with '$selector' (TLS=$tls)");
   my $buf = '';
   my $id = Mojo::IOLoop->client({address => $host, port => $port, tls => $tls, tls_verify => $verify} => sub {
@@ -366,7 +367,8 @@ sub query {
     $stream->on(close => sub {
       my $loop = shift;
       $log->debug("Stream closed: " . length($buf) . " bytes received");
-      handle($c, decode('UTF-8', $buf), '', $host, $port)});
+      # this is the only call to handle that isn't reporting an error!
+      handle($c, decode('UTF-8', $buf), '', $scheme, $host, $port)});
     $log->debug("Connected to $host:$port and sending '$selector'");
     $stream->write("$selector\r\n")});
   Mojo::IOLoop->start unless Mojo::IOLoop->is_running;
@@ -376,6 +378,7 @@ sub handle {
   my $c = shift;
   my $md = shift;
   my $error = shift;
+  my $scheme = shift;
   my $host = shift;
   my $port = shift;
   $error = markdown($error) if $error;
@@ -384,10 +387,12 @@ sub handle {
     $md = quote_html($md);
     $c->render(template => 'index', url => $url, md => $md, error => $error, raw => 1);
   } else {
-    $md = process($c, $md, $host, $port);
-    $md = quote_ascii_art($md);
-    my $html = $md ? fix(markdown($md)) : '';
-    $c->render(template => 'index', url => $url, md => $html, error => $error, raw => undef);
+    my $debug = $c->param('debug');
+    $md = process($c, $md, $scheme, $host, $port) unless $debug >= 5;
+    $md = quote_ascii_art($md) unless $debug >= 4;
+    $md = markdown($md) unless $debug >= 3;
+    $md = fix($md) unless $debug >= 2;
+    $c->render(template => 'index', url => $url, md => $md, error => $error, raw => undef);
   }
 }
 
@@ -449,7 +454,7 @@ sub get_text {
     $selector = $url;
   }
 
-  query($c, $url->host, $port, $selector || '', $tls, $verify);
+  query($c, $url->scheme, $url->host, $port, $selector || '', $tls, $verify);
 }
 
 get '/' => sub {
