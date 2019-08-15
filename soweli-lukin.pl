@@ -63,6 +63,7 @@ sub process {
   my $host = shift;
   my $port = shift;
   return unless defined $_;
+  my $debug = $c->param('debug');
   # the DOS line endings cause needless confusion
   s!\r\n!\n!g;
   # Gemini
@@ -79,7 +80,6 @@ sub process {
   my $n = 0;
   my $list = 0;
   my $blockquote = 0;
-  my $debug = $ENV{DEBUG};
   while (1) {
     if (/\G^(?<type>[01])(?<name>[^\t\n]*)\t(?<selector>[^\t\n]*)\t(?<host>[^\t\n]*)\t(?<port>\d*).*\n/cgm) {
       # gopher map: gopher link (name is mandatory, all other fields are optional, including extra fields)
@@ -467,6 +467,10 @@ __DATA__
 %= check_box raw => 1, id => 'raw'
 %= label_for tls => 'TLS'
 %= check_box tls => 1, id => 'tls'
+% if (app->mode eq 'development') {
+%= label_for debug => 'debug'
+%= check_box debug => 1, id => 'debug'
+% }
 %= submit_button 'Go'
 % end
 % if ($error) {
