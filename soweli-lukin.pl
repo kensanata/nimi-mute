@@ -394,6 +394,9 @@ sub handle {
 sub get_text {
   my $c = shift;
   my $str = shift;
+  return handle($c, 'Use a Gopher URL like gopher://localhost:4000 '
+		. 'to get started')
+      if not $str and $c->app->mode eq "development";
   return handle($c, 'Use a Gopher URL like gopher://alexschroeder.ch '
 		. 'or gophers://alexschroeder.ch:7443 to get started')
       if not $str;
