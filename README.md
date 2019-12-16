@@ -21,7 +21,7 @@ project.
 
 Examples:
 
-```
+```bash
 # startup server (serving the current directory, and more log messages)
 perl nimi-mute.pl --port 7079 --log_level=4
 # print the default page (README.md)
@@ -52,7 +52,7 @@ filename, a newline, the password, another newline, then the file
 content, and terminate it with a single period on a line by itself,
 like in the good old days when `ed` was the standard editor.
 
-That also means that your text file may not contain a line with just
+That also means that your text file may not contain a line with just a
 period, obviously.
 
 And just because it was easy to do, two greater-than characters
