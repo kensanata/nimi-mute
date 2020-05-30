@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Copyright (C) 2019  Alex Schroeder <alex@gnu.org>
+# Copyright (C) 2019-2020  Alex Schroeder <alex@gnu.org>
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -68,7 +68,7 @@ sub process {
   # the DOS line endings cause needless confusion
   s!\r\n!\n!g;
   # Gemini
-  s!^20\ttext/(plain|gemini)\n!!;
+  s!^20 text/(plain|gemini).*\n!!;
   # these "malformed" references will get handled by Markdown
   s!\[(\d+,\d+)\]!" " . join(", ", map { "[$_]" } split(/,/, $1))!eg;
   # add a space before numerical references
