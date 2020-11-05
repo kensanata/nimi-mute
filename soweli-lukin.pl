@@ -220,9 +220,18 @@ sub process {
       # ---
       $buf .= "<pre>$1</pre>";
       $buf .= "¹⁵" if $debug;
+    } elsif (/\G^(#\w+(?:[ \t]+#\w+)*)/cgm) {
+      # Protect a line of hashtags from being treated as H1 headers
+      $buf .= "<span class=\"tags\">$1</span>";
+      $buf .= "¹⁹" if $debug;
     } elsif (/\G(\s+)/cg) {
       # stretches of whitespace
       $buf .= $1;
+    } elsif (/\G^(\w+)/cgm) {
+      # stretches of word constituents at the beginning of a line means no list!
+      $list = 0;
+      $buf .= $1;
+      $buf .= "⁰" if $debug;
     } elsif (/\G(\w+)/cg) {
       # stretches of word constituents
       $buf .= $1;
@@ -400,13 +409,13 @@ sub handle {
 sub get_text {
   my $c = shift;
   my $str = shift;
-  return handle($c, 'Use a Gopher URL like gopher://localhost:4000 '
-		. 'to get started')
+  return handle($c, 'Use a Gopher URL like gopher://localhost:4000 to get started')
       if not $str and $c->app->mode eq "development";
   return handle($c, 'Use a Gopher URL like gopher://alexschroeder.ch '
-		. 'or gophers://alexschroeder.ch:7443 to get started')
+		. 'or gophers://alexschroeder.ch:7443 to get started, '
+		. 'or a Gemini URL like gemini://alexschroeder.ch')
       if not $str;
-  $log->info("Getting $str");
+  $log->info("Getting $str for " . $c->tx->req->headers->header('X-Forwarded-For'));
 
   my $url = Mojo::URL->new($str);
   if (not $url->scheme) {
