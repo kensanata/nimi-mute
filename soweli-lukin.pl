@@ -125,10 +125,8 @@ sub process {
       # => gopher://example.org:70/1 A gopher link
       my $text = $+{text} || $+{url};
       my $url = Mojo::URL->new($+{url});
-      $url->scheme('gemini') unless $url->scheme;
-      $url->host($host) unless $url->host;
-      $url->port($port) unless $url->port;
-      $url = rewrite_gopher($c, $url);
+      $url->base(Mojo::URL->new($c->param('url')));
+      $url = rewrite_gopher($c, $url->to_abs);
       $buf .= "\n" unless $list++;
       $buf .= "* [$text]($url)";
       $buf .= "¹⁷" if $debug;
